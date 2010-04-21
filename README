@@ -1,0 +1,166 @@
+% BaGoMa(1) BaGoMa User Manual
+% Written by Gabriel Burca
+% May 22, 2011
+
+<!-- This file formatted with Markdown. See DEVELOPERS below. -->
+
+NAME
+====
+
+BaGoMa - A script to *Ba*ckup *Go*ogle *Ma*il.
+
+bAgOmA - A script to backup a *bag* *o*' *ma*il.
+
+SYNOPSIS
+========
+
+`bagoma.py` [*options*] `-e` <*Email*>
+
+DESCRIPTION
+===========
+
+BaGoMa backs-up and restores the contents of a GMail account. It can
+restore all the labels (folder structure), as well as the flags (seen/read,
+flagged) of a message. It differs from other similar solutions in a few
+important ways:
+
+* It is Open Source Software. You can read the code to make sure your password
+and email contents remain private.
+
+* Some backup solutions force you to use only ASCII characters in your labels.
+BaGoMa has no such restrictions on label names. Specifically, foreign
+characters and '/' (the label hierarchy delimiter) are allowed.
+
+* BaGoMa is tuned to work specifically with GMail. Each message is only
+downloaded and saved once. Backup solutions that are designed to work with
+regular IMAP accounts will donwload each message multiple times (once per
+label) when used to back up a GMail account. That can significantly increase
+the bandwidth requirements and the amount of storage required for backup.
+Additionally, a faithful restoration of your GMail account might not be
+possible from such a backup.
+
+
+BaGoMa requires your GMail account to be IMAP accessible. Check the Mail
+Settings and make sure "Enable IMAP" is selected under the "Forwarding and
+POP/IMAP" tab. In the "Folder Size Limits" section on the same tab, make sure
+the following option is selected: "Do not limit the number of messages in an
+IMAP folder".
+
+BaGoMa never deletes any email from your account. A *restore* simply
+compares the contents of your local backup with the contents of your GMail
+account, and uploads any messages missing from your GMail account. It never
+deletes messages from GMail to make it match the local backup.
+
+Google sometimes imposes limits on how much data can be transfered from your
+account. If you run into such a limitation, just wait a few days and try the
+backup again. BaGoMa will pick up from where it left off. If the temporary
+loss of IMAP access is critical to you, think twice before using this script.
+As far as I'm aware, web access to your email should continue unimpeded even
+if IMAP access is blocked.
+
+
+OPTIONS
+=======
+
+-h, \--help
+:	show a help message and exit
+
+-e *EMAIL*, \--email=*EMAIL*
+:	the email address to log in with (MANDATORY)
+
+-p *PWD*, \--pwd=*PWD*
+:	the password to log in with (will prompt if missing)
+
+-d *CACHEDIR*, \--dir=*CACHEDIR*
+:	the backup/restore directory [default: GMailBackup]
+
+-a *ACTION*, \--action=*ACTION*
+:	the action to perform: backup, restore, purge or printIndex [default:
+	backup]
+
+-s *SERVER*, \--server=*SERVER*
+:	the GMail server to use [default: imap.gmail.com]
+
+\--port=*PORT*
+:	the IMAP port to use for GMail [default: 993]
+
+-l *LOGLEVEL*, \--log=*LOGLEVEL*
+:	the console log level (DEBUG, INFO, WARNING, ERROR, CRITICAL) [default:
+	WARNING]
+
+-f *LOGFILE*, \--file=*LOGFILE*
+:	the log file (set it to 'off' to disable logging) [default: log.txt]
+
+
+INSTALL
+=======
+On Linux you can either execute the `bagoma.py` script directly, or install using:
+
+	python setup.py install
+
+LIMITATIONS
+===========
+BaGoMa will NOT backup any of the following:
+
+* Account settings (filter, etc...)
+* Contacts
+* Chat history
+* Labels you've chosen to hide in IMAP
+* Superstars (the additional star icons that can be enabled in Labs)
+* Contents of Trash and Spam
+
+The IMAP protocol does not provide a trully unique ID for an email message
+(UIDVALIDITY + UID doesn't count). In order to determine that message _A_ in
+folder _P_ is the same as message _B_ in folder _Q_ (and only needs to be
+downloaded once), the script computes its own unique ID using the following
+header fields:
+
+* From:
+* To:
+* Cc:
+* Date:
+* Subject:
+* X-GMail-Received:
+* Message-Id:
+* The server assigned timestamp of when the message was received
+
+Two messages that have identical values (ignoring whitespace) for _all_ of the
+fields enumerated above are considered to be identical and will only be
+downloaded and saved once. The chance of two messages having the same
+Message-Id header field is pretty slim. The chance of all the header fields
+mentioned above being identical is _almost_ 0.
+
+
+DEVELOPERS
+==========
+Latest version available at: http://sourceforge.net/projects/bagoma
+
+The `imaplib` library is used to do the heavy lifting. In addition to the
+official documentation, some useful information on imaplib can be found at:
+
+	http://www.doughellmann.com/PyMOTW/imaplib/
+
+The README file uses [Markdown] formatting with [pandoc] extensions so that it
+can be converted to a man page. To create a groff man page out of the README,
+use the following command:
+
+	pandoc -s -w man README -o bagoma.1
+	man -l bagoma.1
+
+See the _TODO_ file.
+
+REPORTING BUGS
+==============
+Report bugs to gburca dash imap at ebixio dot com. Better yet, provide patches to fix the bugs.
+
+Bug reports should include relevant portions of the log file.
+
+
+COPYRIGHT
+=========
+Copyright (C) 2011 by Gabriel Burca. License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
+This is free software: you are free to change and redistribute it.  There is NO WARRANTY, to the extent permitted by law.
+
+
+[Markdown]:	http://daringfireball.net/projects/markdown/syntax
+[pandoc]:	http://johnmacfarlane.net/pandoc/README.html

@@ -2,6 +2,7 @@ dist
 doc
 man
 build
+nbproject/private
 BaGoMa.egg-info
 
 # VIM swap files

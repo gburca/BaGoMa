@@ -1,0 +1,14 @@
+- Add a lock file (per cacheDir) to prevent the user from doing something dumb
+  like run two backups for the same account in parallel, or a "compact" in
+  parallel with a "backup", etc...
+
+- Save the e-mail info in the cacheDir in case the user decides to do a backup
+  of account A in the cacheDir of account B.
+
+- Allow BaGoMa to be used for account migrations (backup from account A,
+  restore to account B).
+
+- Optionally compress local email message files.
+
+- When printing folder names, first decode the name, in case it's in the
+  "modified" UTF-7 encoding.
