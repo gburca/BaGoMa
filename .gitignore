@@ -1,0 +1,8 @@
+dist
+doc
+man
+build
+BaGoMa.egg-info
+
+# VIM swap files
+.*.swp
