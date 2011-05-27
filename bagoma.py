@@ -2,13 +2,13 @@
 # vi:ai:tabstop=8:shiftwidth=4:softtabstop=4:expandtab:fdm=indent
 
 """
-Smart GMail Backup Script
+BaGoMa - BAckup GOogle MAil - A Smart GMail Backup Script
 
 See the README file for full details. Run the script with no arguments to see
 the available options.
 """
 
-__version__ = "1.00"
+__version__ = "1.10"
 __author__ = "Gabriel Burca (gburca dash bagoma at ebixio dot com)"
 __copyright__ = "Copyright (C) 2010-2011 Gabriel Burca. Code under GPL License."
 __license__ = """
@@ -52,8 +52,14 @@ from types import *
 
 options = None
 
-AllMailFolder = '[Gmail]/All Mail'
-IgnoredFolders = ['[Gmail]/Spam', '[Gmail]/Trash']
+# Special Google folder FLAGS we should ignore (Spam, Trash, Drafts, etc...)
+IgnoredFolderFlags = set(['\\Spam', '\\Trash'])
+
+# Folders to ignore (some EMail clients create their own Trash, etc...)
+IgnoredFolders = ['Spam', 'Trash']
+
+# Tell imaplib that XLIST works the same way as LIST
+imaplib.Commands['XLIST'] = imaplib.Commands['LIST']
 
 msgIdMatch  = re.compile(r'\bMessage-Id\: (.+)', re.IGNORECASE + re.MULTILINE)
 uIdMatch    = re.compile(r'\bUID (\d+)', re.IGNORECASE)
@@ -99,6 +105,37 @@ class ImapServer(imaplib.IMAP4_SSL):
 
         logger.info('Logging in as %s ...', email)
         self.login(email, pwd)
+
+        # Discover the special folders (which change with country):
+        # [Gmail]/All Mail  = \AllMail
+        # [Gmail]/Trash     = \Trash
+        # [Gmail]/Spam      = \Spam
+        # [Gmail]/Drafts    = \Drafts
+
+        self.AllMailFolder = '[Gmail]/All Mail'
+        self.IgnoredFolders = list(IgnoredFolders)
+
+        typ, data = self.xlist("", "*")
+        for row in data:
+            flags, delimiter, imap_folder = ImapServer.parseListResponse(row)
+            flags = set(flags.split())
+            if "\\Noselect" not in flags:
+                if "\\AllMail" in flags and "\\Noselect" not in flags:
+                    self.AllMailFolder = imap_folder
+                elif IgnoredFolderFlags.intersection(flags):
+                    self.IgnoredFolders.append(imap_folder)
+
+
+    def xlist(self, directory, pattern):
+        """
+        XLIST is an IMAP extension by Google and Apple.
+
+        Does an XLIST, and returns the results. See getFolders() for how to
+        process the results.
+        """
+        name = 'XLIST'
+        typ, data = self._simple_command(name, directory, pattern)
+        return self._untagged_response(typ, data, name)
 
 
     def getFolders(self):
@@ -204,7 +241,7 @@ class ImapServer(imaplib.IMAP4_SSL):
 
         messages = {}
 
-        folderName = AllMailFolder
+        folderName = self.AllMailFolder
         logger.info("Downloading messages from %s" % folderName)
         folder = EmailFolder(self, folderName)
         if not folder.OK:
@@ -263,7 +300,7 @@ class ImapServer(imaplib.IMAP4_SSL):
         message is tagged.
         """
         folderInfo = {allMailFld.name:allMailFld}
-        ignoreFolders = [AllMailFolder] + IgnoredFolders
+        ignoreFolders = [self.AllMailFolder] + self.IgnoredFolders
 
         try:
             for folderName in [f for f in self.getFolders() if f not in ignoreFolders]:
@@ -562,13 +599,13 @@ def restore(server, cacheDir, msgIndexFile, fldIndexFile):
     oldMsgs = deserialize(msgIndexFile)
     oldFlds = deserialize(fldIndexFile)
 
-    if not restoreAllMailFld(server, cacheDir, oldMsgs, oldFlds[AllMailFolder]):
+    if not restoreAllMailFld(server, cacheDir, oldMsgs, oldFlds[server.AllMailFolder]):
         return False
 
     currFolderNames = server.getFolders()
     oldNames = oldFlds.keys()
-    oldNames.remove(AllMailFolder)
-    for fn in IgnoredFolders:
+    oldNames.remove(server.AllMailFolder)
+    for fn in server.IgnoredFolders:
         if fn in oldNames:
             oldNames.remove(fn)
 
@@ -608,7 +645,7 @@ def restore(server, cacheDir, msgIndexFile, fldIndexFile):
                 # differs. Update the local UIDs and UIDVALIDITY.
                 updateLocalUIDs(oldFld, folder)
 
-        server.select(AllMailFolder)
+        server.select(server.AllMailFolder)
         copied = 0
 
         for sha1 in missingSha1:
@@ -646,7 +683,7 @@ def restore(server, cacheDir, msgIndexFile, fldIndexFile):
                         oldFld.msgs[ sha2newUid[sha1] ] = sha1
                 oldFld.UIDs = list(oldFld.msgs.keys())
 
-        status("Copied %d/%d messages from %s to %s\n" % (copied, len(missingSha1), AllMailFolder, folderName))
+        status("Copied %d/%d messages from %s to %s\n" % (copied, len(missingSha1), server.AllMailFolder, folderName))
 
     serialize(fldIndexFile, oldFlds)
     serialize(msgIndexFile, oldMsgs)
@@ -670,9 +707,9 @@ def updateLocalUIDs(oldFld, newFld):
  
 
 def restoreAllMailFld(server, cacheDir, oldMsgs, oldFld):
-    folder = EmailFolder(server, AllMailFolder)
+    folder = EmailFolder(server, server.AllMailFolder)
     if not folder.OK:
-        logger.warn("Unable to restore mail to %s", AllMailFolder)
+        logger.warn("Unable to restore mail to %s", server.AllMailFolder)
         return False
 
     uploaded = 0
@@ -685,7 +722,7 @@ def restoreAllMailFld(server, cacheDir, oldMsgs, oldFld):
 
         for uid in msgUIDs:
             sha1 = oldFld.msgs[uid]
-            newUid = server.upload(cacheDir, oldMsgs[sha1], AllMailFolder)
+            newUid = server.upload(cacheDir, oldMsgs[sha1], server.AllMailFolder)
             if newUid is not None:
                 del( oldFld.msgs[uid] )
                 oldFld.msgs[newUid] = sha1
@@ -694,7 +731,7 @@ def restoreAllMailFld(server, cacheDir, oldMsgs, oldFld):
                 # TODO: Error handling
                 logger.error("Failed to upload SHA1 %s to AllMail folder" % sha1)
     else:
-        folder = server.indexOneFolder(None, oldFld, AllMailFolder)
+        folder = server.indexOneFolder(None, oldFld, server.AllMailFolder)
         oldSha1 = set(oldFld.msgs.values())
         newSha1 = set(folder.msgs.values())
         missingSha1 = list(oldSha1.difference(newSha1))
@@ -704,7 +741,7 @@ def restoreAllMailFld(server, cacheDir, oldMsgs, oldFld):
             sha2oldUid[val] = key
 
         for sha1 in missingSha1:
-            newUid = server.upload(cacheDir, oldMsgs[sha1], AllMailFolder)
+            newUid = server.upload(cacheDir, oldMsgs[sha1], server.AllMailFolder)
             if newUid is not None:
                 del( oldFld.msgs[ sha2oldUid[sha1] ] )
                 oldFld.msgs[newUid] = sha1
@@ -717,7 +754,7 @@ def restoreAllMailFld(server, cacheDir, oldMsgs, oldFld):
         oldFld['UIDVALIDITY'] = folder['UIDVALIDITY']
         # TODO: Copy other fields?
 
-    status("Uploaded %d messages to %s\n" % (uploaded, AllMailFolder))
+    status("Uploaded %d messages to %s\n" % (uploaded, server.AllMailFolder))
     return True
 
 
@@ -827,7 +864,7 @@ def main(argv=None):
     parser.add_option("-s", "--server",
                         default="imap.gmail.com",
                         help="the GMail server to use [default: %default]")
-    parser.add_option("--dryRun", default=False,
+    parser.add_option("--dryRun", default=False, action="store_true",
                         help="pretend to perform \"compact\" [default: %default]")
     parser.add_option("--port", default=993,
                         help="the IMAP port to use for GMail [default: %default]")
@@ -836,6 +873,8 @@ def main(argv=None):
                         help="the console log level (DEBUG, INFO, WARNING, ERROR, CRITICAL) [default: %default]")
     parser.add_option("-f", "--file", dest="logFile", default='log.txt',
                         help="the log file (set it to 'off' to disable logging) [default: %default]")
+    parser.add_option("--version", default=False, action="store_true", 
+                        help="show the version number")
 
     global options
     (options, args) = parser.parse_args(argv)
@@ -843,6 +882,10 @@ def main(argv=None):
     logger.debug("**** **** **** **** **** **** **** **** **** **** **** ****")
     logger.debug("Version: %s", __version__)
     logger.debug(pprint.pformat( [i for i in options.__dict__.items() if i[0] != 'pwd'] ))
+
+    if options.version:
+        status("Version: %s\n" % __version__)
+        return
 
     if options.email is None:
         parser.print_help()
@@ -872,11 +915,12 @@ def main(argv=None):
     else:
         pass
         # Debug
+        # server = ImapServer(options.server, options.port, options.email, options.pwd)
         # status(server.getFolders())
-        # status(server.select(AllMailFolder, readonly=True))
+        # status(server.select(server.AllMailFolder, readonly=True))
         # status(server.uid('SEARCH', '%d:%d' % (1, 4)))
         # status(server.uid('SEARCH', '5:90'))
-        # status(server.saveMsg(5190, "__Duplicate5190", options.cacheDir, AllMailFolder))
+        # status(server.saveMsg(5190, "__Duplicate5190", options.cacheDir, server.AllMailFolder))
 
     if server is not None:
         try:

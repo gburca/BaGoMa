@@ -3,15 +3,33 @@
 Design by Free CSS Templates
 http://www.freecsstemplates.org
 Released for free under a Creative Commons Attribution 2.5 License
+
+Customized for BaGoMa
 */
 
 body {
-	margin: 0;
+	margin: 10px 80px;
 	padding: 0;
 	background: #151515 url(images/img01.jpg) repeat-x left top;
 	text-align: justify;
 	font: 13px "Trebuchet MS", Arial, Helvetica, sans-serif;
 	color: #7F7772;
+}
+
+h1.title {
+	word-spacing: 10px;
+	letter-spacing: 5px;
+	color: #bbbbbb;
+}
+
+div#name {
+	margin-top: 10px;
+	margin-bottom: 29px;
+	margin-left: 50px;
+}
+
+div#name p {
+	margin: 0px;
 }
 
 form {
@@ -39,12 +57,12 @@ h1, h1 a, h2, h2 a, h3, h3 a {
 }
 
 h1 {
-	letter-spacing: -3px;
+	letter-spacing: -1px;
 	font-size: 2.6em;
 }
 
 h2 {
-	letter-spacing: -2px;
+	letter-spacing: -1px;
 	font-size: 2em;
 }
 
@@ -81,7 +99,7 @@ img {
 img.left {
 	float: left;
 	margin: 8px 20px 0px 0px;
-	border: 2px solid #434343; 
+	border: 2px solid #434343;
 }
 
 

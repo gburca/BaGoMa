@@ -1,8 +1,8 @@
 % BaGoMa(1) BaGoMa User Manual
 % Written by Gabriel Burca
-% May 22, 2011
+% May 28, 2011
 
-<!-- This file formatted with Markdown. See DEVELOPERS below. -->
+<!-- This file formatted with Markdown. See DEVELOPERS section below. -->
 
 NAME
 ====
@@ -14,7 +14,23 @@ bAgOmA - A script to backup a *bag* *o*' *ma*il.
 SYNOPSIS
 ========
 
+Linux and Friends
+-----------------
+
 `bagoma.py` [*options*] `-e` <*Email*>
+
+Windows
+-------
+
+Download the zip file containing the stand-alone exe, then from a DOS shell:
+
+`bagoma.exe` [*options*] `-e` <*Email*>
+
+Alternatively, install python from [python.org][PythonDownload], [CygWin], or [ActiveState],
+then from a DOS or CygWin shell:
+
+`python bagoma.py` [*options*] `-e` <*Email*>
+
 
 DESCRIPTION
 ===========
@@ -33,7 +49,7 @@ characters and '/' (the label hierarchy delimiter) are allowed.
 
 * BaGoMa is tuned to work specifically with GMail. Each message is only
 downloaded and saved once. Backup solutions that are designed to work with
-regular IMAP accounts will donwload each message multiple times (once per
+regular IMAP accounts will download each message multiple times (once per
 label) when used to back up a GMail account. That can significantly increase
 the bandwidth requirements and the amount of storage required for backup.
 Additionally, a faithful restoration of your GMail account might not be
@@ -94,9 +110,23 @@ OPTIONS
 
 INSTALL
 =======
-On Linux you can either execute the `bagoma.py` script directly, or install using:
+
+There's nothing really to install. Once you unpack the downloaded package,
+you'll find the bagoma.py script in the top directory. On Linux you can run the
+script directly. On Windows, you'll need to install python first (if you don't
+already have it) from [python.org][PythonDownload], [CygWin], or [ActiveState],
+then from a DOS or CygWin shell:
+
+	`python bagoma.py` [*options*] `-e` <*Email*>
+
+Man page can be viewed with:
+
+	man -l man/bagoma.1
+
+For those that know what they're doing:
 
 	python setup.py install
+
 
 LIMITATIONS
 ===========
@@ -131,36 +161,44 @@ Message-Id header field is pretty slim. The chance of all the header fields
 mentioned above being identical is _almost_ 0.
 
 
+DOWNLOAD
+========
+Latest version available at: <http://sourceforge.net/projects/bagoma>
+
+Project homepage is at: <http://bagoma.sourceforge.net/>
+
+
 DEVELOPERS
 ==========
-Latest version available at: http://sourceforge.net/projects/bagoma
-
 The `imaplib` library is used to do the heavy lifting. In addition to the
-official documentation, some useful information on imaplib can be found at:
-
-	http://www.doughellmann.com/PyMOTW/imaplib/
+official `imaplib` documentation, some other useful information can be found
+at: <http://www.doughellmann.com/PyMOTW/imaplib/>
 
 The README file uses [Markdown] formatting with [pandoc] extensions so that it
-can be converted to a man page. To create a groff man page out of the README,
-use the following command:
+can be converted to a man page.
 
-	pandoc -s -w man README -o bagoma.1
-	man -l bagoma.1
+If you want to help, see the _TODO_ file.
 
-See the _TODO_ file.
 
 REPORTING BUGS
 ==============
-Report bugs to gburca dash imap at ebixio dot com. Better yet, provide patches to fix the bugs.
+Bugs can be reported at the project's [SourceForge] page. Better yet, provide
+patches to fix the bugs.
 
 Bug reports should include relevant portions of the log file.
 
 
 COPYRIGHT
 =========
-Copyright (C) 2011 by Gabriel Burca. License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
-This is free software: you are free to change and redistribute it.  There is NO WARRANTY, to the extent permitted by law.
+Copyright (C) 2011 by Gabriel Burca. License GPLv3+: GNU GPL version 3 or later
+<http://gnu.org/licenses/gpl.html>.  This is free software: you are free to
+change and redistribute it.  There is NO WARRANTY, to the extent permitted by
+law.
 
 
-[Markdown]:	http://daringfireball.net/projects/markdown/syntax
-[pandoc]:	http://johnmacfarlane.net/pandoc/README.html
+[Markdown]:		http://daringfireball.net/projects/markdown/syntax
+[pandoc]:		http://johnmacfarlane.net/pandoc/README.html
+[SourceForge]: 		http://sourceforge.net/p/bagoma/
+[PythonDownload]:	http://www.python.org/download/releases/
+[ActiveState]:		http://www.activestate.com/activepython/downloads
+[CygWin]:		http://www.cygwin.com

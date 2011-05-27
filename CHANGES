@@ -1,3 +1,9 @@
+v01.10 2011-05-28
+=================
+	* Auto-detect the names of special folders such as "All Mail"
+	* Added stand-alone command-line binary for Windows
+
+
 v01.00 2011-05-25
 =================
 	* Initial release
