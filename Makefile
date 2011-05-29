@@ -11,11 +11,11 @@ install:
 
 doc:
 	mkdir -p man
-	pandoc -s --to=man README -o man/bagoma.1
+	cat man.title README | pandoc -s --to=man -o man/bagoma.1
 	mkdir -p doc
+	cat html.title README | pandoc -s --to=html -o doc/index.html -T "BaGoMa" --css=default.css --include-in-header google.analytics
 	pandoc -s --to=plain README -o doc/README.txt
-	pandoc -s --to=markdown README -o doc/README.markdown
-	pandoc -s --to=html README -o doc/index.html --css=default.css --include-in-header google.analytics
+	pandoc -s --to=markdown README -o doc/README.markdown --no-wrap
 
 dist: doc
 	python setup.py sdist --formats=gztar,zip
@@ -35,7 +35,7 @@ deb: dist
 	#cp -r debian dist/
 	#cd dist && dpkg-buildpackage -i -I -rfakeroot
 
-upload: dist
+upload: doc
 	scp homepage/index.html $(USER),bagoma@web.sourceforge.net:htdocs
 	scp homepage/default.css $(USER),bagoma@web.sourceforge.net:htdocs
 

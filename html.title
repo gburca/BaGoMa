@@ -1,0 +1,9 @@
+% BaGoMa User Manual
+% Written by Gabriel Burca
+% May 28, 2011
+
+<!--
+	Used by pandoc's man page writer to properly set the title, man page
+	section number, etc... in the generated man page.
+-->
+

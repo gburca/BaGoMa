@@ -1,8 +1,3 @@
-% BaGoMa(1) BaGoMa User Manual
-% Written by Gabriel Burca
-% May 28, 2011
-
-<!-- This file formatted with Markdown. See DEVELOPERS section below. -->
 
 NAME
 ====
@@ -17,19 +12,30 @@ SYNOPSIS
 Linux and Friends
 -----------------
 
-`bagoma.py` [*options*] `-e` <*Email*>
+`bagoma.py` \[*options*] `-e` <*Email*>
 
 Windows
 -------
 
 Download the zip file containing the stand-alone exe, then from a DOS shell:
 
-`bagoma.exe` [*options*] `-e` <*Email*>
+`bagoma.exe` \[*options*] `-e` <*Email*>
 
 Alternatively, install python from [python.org][PythonDownload], [CygWin], or [ActiveState],
 then from a DOS or CygWin shell:
 
-`python bagoma.py` [*options*] `-e` <*Email*>
+`python bagoma.py` \[*options*] `-e` <*Email*>
+
+
+WEB SITES
+=========
+
+* Home: <http://sourceforge.net/p/bagoma/>
+* Downloads: <http://sourceforge.net/projects/bagoma/files/>
+* Documentation: <http://bagoma.sourceforge.net/> and <http://ebixio.com/blog/2011/05/28/smart-backup-for-your-gmail-account/>
+* Project page: <http://sourceforge.net/projects/bagoma/>
+* Freshmeat: <http://freshmeat.net/projects/bagoma/>
+* GitHub: <http://github.com/gburca/BaGoMa>
 
 
 DESCRIPTION
@@ -91,8 +97,17 @@ OPTIONS
 :	the backup/restore directory [default: GMailBackup]
 
 -a *ACTION*, \--action=*ACTION*
-:	the action to perform: backup, restore, purge or printIndex [default:
+:	the action to perform: backup, restore, compact or printIndex [default:
 	backup]
+
+	* The function of the *backup* and *restore* actions should be obvious.
+
+	* BaGoMa retains all backed up messages, even if they are no longer
+	present on the GMail server during a subsequent backup. The *compact*
+	action will compact the local storage by deleting all such messages.
+
+	* The *printIndex* action displays all the meta-information BaGoMa
+	operates on. This action is primarily intended for developers.
 
 -s *SERVER*, \--server=*SERVER*
 :	the GMail server to use [default: imap.gmail.com]
@@ -107,6 +122,8 @@ OPTIONS
 -f *LOGFILE*, \--file=*LOGFILE*
 :	the log file (set it to 'off' to disable logging) [default: log.txt]
 
+\--version
+:	show the version number
 
 INSTALL
 =======
@@ -117,15 +134,15 @@ script directly. On Windows, you'll need to install python first (if you don't
 already have it) from [python.org][PythonDownload], [CygWin], or [ActiveState],
 then from a DOS or CygWin shell:
 
-	`python bagoma.py` [*options*] `-e` <*Email*>
+`python bagoma.py` \[*options*] `-e` <*Email*>
 
 Man page can be viewed with:
 
-	man -l man/bagoma.1
+`man -l man/bagoma.1`
 
 For those that know what they're doing:
 
-	python setup.py install
+`python setup.py install`
 
 
 LIMITATIONS
@@ -170,6 +187,10 @@ Project homepage is at: <http://bagoma.sourceforge.net/>
 
 DEVELOPERS
 ==========
+
+The source code is hosted both on SourceForge.net and on GitHub at
+<http://github.com/gburca/BaGoMa>. Collaboration will be easier on GitHub.
+
 The `imaplib` library is used to do the heavy lifting. In addition to the
 official `imaplib` documentation, some other useful information can be found
 at: <http://www.doughellmann.com/PyMOTW/imaplib/>
