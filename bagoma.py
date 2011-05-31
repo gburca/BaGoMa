@@ -8,7 +8,7 @@ See the README file for full details. Run the script with no arguments to see
 the available options.
 """
 
-__version__ = "1.10"
+__version__ = "1.20"
 __author__ = "Gabriel Burca (gburca dash bagoma at ebixio dot com)"
 __copyright__ = "Copyright (C) 2010-2011 Gabriel Burca. Code under GPL License."
 __license__ = """
@@ -814,6 +814,29 @@ def houseKeeping(cacheDir, msgIndexFile, fldIndexFile, purge):
         serialize(fldIndexFile, fldIndex)
 
 
+def interact():
+    global server, options
+
+    if server is None:
+        server = ImapServer(options.server, options.port, options.email, options.pwd)
+
+    server.select(server.AllMailFolder, readonly=True)
+    try:
+        from IPython.Shell import IPShellEmbed
+        s = server
+        ipshell = IPShellEmbed('', banner='\nBaGoMa server instance is "s"')
+        instructions = """
+        Hit Ctrl-D to exit interpreter and continue program. Some things to do:
+
+        s.getFolders()
+        s.uid('SEARCH', '5:90')
+        s.saveMsg(5190, '__Test01', options.cacheDir, s.AllMailFolder)
+        """
+        ipshell(instructions)
+    except ImportError:
+        status("Could not launch the IPython shell\n")
+
+
 def setupLogging():
     """
     Sets up logging. To use from the code:
@@ -918,15 +941,8 @@ def main(argv=None):
         status(deserialize(msgIndexFile))
         status("\n\n")
         status(deserialize(fldIndexFile))
-    else:
-        pass
-        # Debug
-        # server = ImapServer(options.server, options.port, options.email, options.pwd)
-        # status(server.getFolders())
-        # status(server.select(server.AllMailFolder, readonly=True))
-        # status(server.uid('SEARCH', '%d:%d' % (1, 4)))
-        # status(server.uid('SEARCH', '5:90'))
-        # status(server.saveMsg(5190, "__Duplicate5190", options.cacheDir, server.AllMailFolder))
+    elif options.action == "debug":
+        interact()
 
     if server is not None:
         try:

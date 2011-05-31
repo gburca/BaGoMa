@@ -9,14 +9,14 @@ def read(fname):
 
 setup (
     name = 'BaGoMa',
-    version = '1.10',
+    version = '1.20',
     author = 'Gabriel Burca',
     author_email = 'gburca-bagoma@ebixio.com',
 
     requires = ['imaplib', 'cPickle', 'pprint', 'hashlib', 'time', 'getpass',
       'optparse', 'email.parser'],
 
-    scripts = ['bagoma.py'],
+    scripts = ['bagoma.py', 'imap_utf7.py'],
 
     url = 'http://sourceforge.net/projects/bagoma',
     download_url = 'http://sourceforge.net/projects/bagoma/files/',
