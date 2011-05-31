@@ -5,5 +5,7 @@ build
 nbproject/private
 BaGoMa.egg-info
 
+*.pyc
+
 # VIM swap files
 .*.swp

@@ -36,8 +36,11 @@ import pprint
 import hashlib
 import time
 import getpass
+import imap_utf7
 from optparse import OptionParser
 from email.parser import HeaderParser
+import logging
+from types import *
 
 # For debugging
 try:
@@ -47,8 +50,6 @@ except ImportError:
 else:
     set_trace = pdb.set_trace
 
-import logging
-from types import *
 
 options = None
 
@@ -85,13 +86,16 @@ def deserialize(filename):
 
 def status(msg, log2logger=True):
     """Logs a status message (or object)"""
-    if type(msg) in [StringType, IntType, LongType, FloatType]:
-        sys.stdout.write(msg)
-        if log2logger: logger.info(str(msg).strip())
+    if type(msg) == unicode:
+        print msg.encode('utf-8'),
+    elif type(msg) in [StringType, IntType, LongType, FloatType]:
+        print msg,
+        msg = str(msg)
     else:
-        msgStr = pprint.pformat(msg)
-        sys.stdout.write(msgStr)
-        if log2logger: logger.info(msgStr.strip())
+        msg = pprint.pformat(msg).strip()
+        print msg,
+
+    if log2logger: logger.info(msg)
     sys.stdout.flush()
 
 
@@ -324,7 +328,7 @@ class ImapServer(imaplib.IMAP4_SSL):
         """
         folder = EmailFolder(self, folderName)
         if folder.OK:
-            status("Indexing: %s\n" % folderName)
+            status("Indexing: %s\n" % imap_utf7.decode(folderName))
         else:
             # TODO: Error handling
             logger.error("Unable to select folder: %s" % folderName)
@@ -840,43 +844,46 @@ def setupLogging():
 
     # Log debug messages to a file
     if len(options.logFile) and options.logFile != 'off':
-        fh = logging.FileHandler(options.logFile)
+        fh = logging.FileHandler(options.logFile, "a", encoding = "UTF-8")
         fh.setLevel(logging.DEBUG)
         fh.setFormatter( logging.Formatter('%(asctime)s - %(name)s - %(levelname)-8s - %(message)s') )
         logger.addHandler(fh)
 
 
 def main(argv=None):
+    global options, server
+
     if argv is None:
         argv = sys.argv
 
     usage = "usage: %prog [options] -e <Email>"
     parser = OptionParser(usage = usage)
     parser.add_option("-e", "--email", dest="email",
-                        help="the email address to log in with (MANDATORY)")
+                        help="The email address to log in with (MANDATORY)")
     parser.add_option("-p", "--pwd", dest="pwd",
-                        help="the password to log in with (will prompt if missing)")
+                        help="The password to log in with (will prompt if missing)")
     parser.add_option("-d", "--dir", dest="cacheDir",
-                        help="the backup/restore directory [default: same as email]")
+                        help="The backup/restore directory [default: same as email]")
     parser.add_option("-a", "--action", dest="action", default='backup',
                         choices=['backup', 'restore', 'compact', 'printIndex', 'debug'],
-                        help="the action to perform: backup, restore, compact or printIndex [default: %default]")
+                        help="The action to perform: backup, restore, compact, \
+                        printIndex or debug [default: %default]")
+    parser.add_option("--dryRun", default=False, action="store_true",
+                        help="When combined with \"compact\", shows what files \
+                        would be deleted [default: %default]")
     parser.add_option("-s", "--server",
                         default="imap.gmail.com",
-                        help="the GMail server to use [default: %default]")
-    parser.add_option("--dryRun", default=False, action="store_true",
-                        help="pretend to perform \"compact\" [default: %default]")
+                        help="The GMail server to use [default: %default]")
     parser.add_option("--port", default=993,
-                        help="the IMAP port to use for GMail [default: %default]")
+                        help="The IMAP port to use for GMail [default: %default]")
     parser.add_option("-l", "--log", dest="logLevel", default="WARNING",
                         choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
-                        help="the console log level (DEBUG, INFO, WARNING, ERROR, CRITICAL) [default: %default]")
+                        help="The console log level (DEBUG, INFO, WARNING, ERROR, CRITICAL) [default: %default]")
     parser.add_option("-f", "--file", dest="logFile", default='log.txt',
-                        help="the log file (set it to 'off' to disable logging) [default: %default]")
+                        help="The log file (set it to 'off' to disable logging) [default: %default]")
     parser.add_option("--version", default=False, action="store_true", 
                         help="show the version number")
 
-    global options
     (options, args) = parser.parse_args(argv)
     setupLogging()
     logger.debug("**** **** **** **** **** **** **** **** **** **** **** ****")
@@ -897,7 +904,6 @@ def main(argv=None):
     msgIndexFile = os.path.join(options.cacheDir, "msgIndex.pickle")
     fldIndexFile = os.path.join(options.cacheDir, "fldIndex.pickle")
 
-    global server
     server = None
     if options.action == "backup":
         server = ImapServer(options.server, options.port, options.email, options.pwd)
