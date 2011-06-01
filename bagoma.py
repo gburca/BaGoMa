@@ -31,6 +31,7 @@ import cPickle as pickle
 import imaplib
 import sys
 import os.path
+import shutil
 import re
 import pprint
 import hashlib
@@ -162,14 +163,14 @@ class ImapServer(imaplib.IMAP4_SSL):
         return (flags, delimiter, mailbox_name)
 
 
-    def upload(self, cacheDir, msg, destFolder):
+    def upload(self, backupDir, msg, destFolder):
         """
         Finds the file containing the msg, and uploads it to the destFolder on the server.
 
         Returns the new UID assigned to the uploaded message, or None if it fails.
         """
         sha = msg['sha1']
-        fullPath = os.path.join(cacheDir, sha[0:2], sha)
+        fullPath = os.path.join(backupDir, sha[0:2], sha)
         if not os.path.isfile(fullPath):
             logger.warn("Missing %s - can not upload %s" % (sha, fullPath))
             return None
@@ -190,22 +191,22 @@ class ImapServer(imaplib.IMAP4_SSL):
             return None
 
 
-    def saveMsg(self, uid, shaHex, cacheDir, folderName=None):
+    def saveMsg(self, uid, shaHex, backupDir, folderName=None):
         """
-        Saves a mail message locally. If cacheDir does not exist, nothing is saved.
+        Saves a mail message locally. If backupDir does not exist, nothing is saved.
 
         @param uid The UID of the message to save
         @param shaHex The sha/file to save it to
-        @param cacheDir The directory to save it to
+        @param backupDir The directory to save it to
         @param folderName Optional name of the IMAP folder to retrieve the
             message from. If the folderName argument is not used, the folder to
             save from should be selected before calling this method.
         """
 
-        if cacheDir is None or not os.path.exists(cacheDir):
+        if backupDir is None or not os.path.exists(backupDir):
             return False
 
-        dir = os.path.join(cacheDir, shaHex[0:2])
+        dir = os.path.join(backupDir, shaHex[0:2])
         if not os.path.exists(dir):
             os.makedirs(dir)
 
@@ -232,11 +233,11 @@ class ImapServer(imaplib.IMAP4_SSL):
         return False
 
 
-    def saveAllMsgs(self, cacheDir, oldMsgs, oldFlds):
+    def saveAllMsgs(self, backupDir, oldMsgs, oldFlds):
         """
-        Saves all new messages to the cacheDir.
+        Saves all new messages to the backupDir.
 
-        @param cacheDir The directory to save the messages in
+        @param backupDir The directory to save the messages in
         @param oldMsgs A dictionary of old messages that have been previously
             saved. If there are none, this should be an empty dict.
         @param oldFlds A dictionary of old folders that have been previously
@@ -276,17 +277,17 @@ class ImapServer(imaplib.IMAP4_SSL):
                 if messages.has_key(sha1):
                     old = messages[sha1]
                     dupSha1 = "__%s.%s" % (sha1, uid)
-                    self.saveMsg(uid, dupSha1, cacheDir)
+                    self.saveMsg(uid, dupSha1, backupDir)
                     logger.warn("Duplicate SHA1 found. UID: %s & %s. Saved to SHA1: %s" % (old['uid'], uid, dupSha1))
                     logger.debug("InternalDate: %s -- %s" % (old['internaldate'], msg['internaldate']))
                 else:
                     if not oldMsgs.has_key(sha1):
-                        self.saveMsg(uid, sha1, cacheDir)
+                        self.saveMsg(uid, sha1, backupDir)
                         saved += 1
                     messages[sha1] = msg
                     folder.msgs[uid] = sha1
 
-                status('\r%d/%d ' % (i, msgCnt), False)
+                status('\r%.0f%% %d/%d ' % (i * 100.0 /msgCnt, i, msgCnt), False)
         except:
             status("\n", False)
             logger.debug("Saved %d/%d messages (%d candidates)" % (saved, msgCnt, i))
@@ -360,7 +361,7 @@ class ImapServer(imaplib.IMAP4_SSL):
                         # contains a full list of all current SHA1's
                         logger.warn("New message arrived in %s while indexing %d/%d ?" % (folderName, i, msgCnt))
 
-                status('\r%d/%d ' % (i, msgCnt), False)
+                status('\r%.0f%% %d/%d ' % (i * 100.0 / msgCnt, i, msgCnt), False)
         except:
             status("\n", False)
             logger.debug("Indexed %d/%d" % (i, msgCnt))
@@ -555,27 +556,60 @@ class EmailMsg(dict):
 
 
     @staticmethod
-    def move(shaHexFrom, shaHexTo, cacheDir):
-        srcPath = os.path.join(cacheDir, shaHexFrom[0:2], shaHexFrom)
-        dstPath = os.path.join(cacheDir, shaHexTo[0:2], shaHexTo)
+    def move(shaHexFrom, shaHexTo, backupDir):
+        srcPath = os.path.join(backupDir, shaHexFrom[0:2], shaHexFrom)
+        dstPath = os.path.join(backupDir, shaHexTo[0:2], shaHexTo)
 
         # Creates directories as needed
         os.renames(srcPath, dstPath)
 
 
-def backup(server, cacheDir, msgIndexFile, fldIndexFile):
+def rotateFile(fName, levels, move=False):
+    """Recursively copies (or moves) fName.1 to fName.2, fName to fName.1,
+    etc... retaining files up to fName.n where n == levels"""
+    if not os.path.exists(fName): return True
+
+    name, num = re.search(r'(.+?)(?:\.(\d+))?$', fName).groups()
+    if num is None:
+        num = 1
+    else:
+        num = int(num) + 1
+
+    target = "%s.%d" % (name, num)
+    if levels > 1:
+        if not rotateFile(target, levels - 1):
+            return False
+
+    try:
+        if move:
+            if os.path.exists(target):
+                os.remove(target)
+            os.rename(fName, target)
+        else:
+            shutil.copyfile(fName, target)
+    except:
+        logger.exception("Failed to rotate file")
+        return False
+
+    return True
+
+
+def backup(server, backupDir, msgIndexFile, fldIndexFile):
     """
     Backs up the current state of the server. All messages are saved in
-    cacheDir, and metadata goes in the msgIndexFile and fldIndexFile.
+    backupDir, and metadata goes in the msgIndexFile and fldIndexFile.
     """
 
-    # If cacheDir does not exist, nothing is saved, so create it first.
-    if not os.path.exists(cacheDir):
-        os.makedirs(cacheDir)
+    # If backupDir does not exist, nothing is saved, so create it first.
+    if not os.path.exists(backupDir):
+        os.makedirs(backupDir)
 
     oldMsgs = deserialize(msgIndexFile)
     oldFlds = deserialize(fldIndexFile)
-    messages, allMailFld = server.saveAllMsgs(cacheDir, oldMsgs, oldFlds)
+    rotateFile(msgIndexFile, 5)
+    rotateFile(fldIndexFile, 5)
+
+    messages, allMailFld = server.saveAllMsgs(backupDir, oldMsgs, oldFlds)
     if len(messages) >= 0:
         # Save msgIndex first, in case we run into problems later
         if len(msgIndexFile) > 0: serialize(msgIndexFile, messages)
@@ -591,19 +625,19 @@ def backup(server, cacheDir, msgIndexFile, fldIndexFile):
         logger.info("Not enough messages to back up")
 
 
-def restore(server, cacheDir, msgIndexFile, fldIndexFile):
+def restore(server, backupDir, msgIndexFile, fldIndexFile):
     """
     Restores messages from the local backup. For messages that are already on
     the server, it restores the labels that were attached to the message when
     the backup was made.
     """
-    if not os.path.exists(cacheDir) or not os.path.exists(msgIndexFile) or not os.path.exists(fldIndexFile):
+    if not os.path.exists(backupDir) or not os.path.exists(msgIndexFile) or not os.path.exists(fldIndexFile):
         return False
 
     oldMsgs = deserialize(msgIndexFile)
     oldFlds = deserialize(fldIndexFile)
 
-    if not restoreAllMailFld(server, cacheDir, oldMsgs, oldFlds[server.AllMailFolder]):
+    if not restoreAllMailFld(server, backupDir, oldMsgs, oldFlds[server.AllMailFolder]):
         return False
 
     currFolderNames = server.getFolders()
@@ -710,7 +744,7 @@ def updateLocalUIDs(oldFld, newFld):
 
  
 
-def restoreAllMailFld(server, cacheDir, oldMsgs, oldFld):
+def restoreAllMailFld(server, backupDir, oldMsgs, oldFld):
     folder = EmailFolder(server, server.AllMailFolder)
     if not folder.OK:
         logger.warn("Unable to restore mail to %s", server.AllMailFolder)
@@ -726,7 +760,7 @@ def restoreAllMailFld(server, cacheDir, oldMsgs, oldFld):
 
         for uid in msgUIDs:
             sha1 = oldFld.msgs[uid]
-            newUid = server.upload(cacheDir, oldMsgs[sha1], server.AllMailFolder)
+            newUid = server.upload(backupDir, oldMsgs[sha1], server.AllMailFolder)
             if newUid is not None:
                 del( oldFld.msgs[uid] )
                 oldFld.msgs[newUid] = sha1
@@ -745,7 +779,7 @@ def restoreAllMailFld(server, cacheDir, oldMsgs, oldFld):
             sha2oldUid[val] = key
 
         for sha1 in missingSha1:
-            newUid = server.upload(cacheDir, oldMsgs[sha1], server.AllMailFolder)
+            newUid = server.upload(backupDir, oldMsgs[sha1], server.AllMailFolder)
             if newUid is not None:
                 del( oldFld.msgs[ sha2oldUid[sha1] ] )
                 oldFld.msgs[newUid] = sha1
@@ -764,7 +798,7 @@ def restoreAllMailFld(server, cacheDir, oldMsgs, oldFld):
 
 def purgeCallBack(arg, dirname, fnames):
     msgIndex = arg
-    for fname in [f for f in fnames if not f.endswith('.pickle')]:
+    for fname in [f for f in fnames if not re.search('pickle(\.\d+)?$', f)]:
         if not msgIndex.has_key(fname) and os.path.isfile(fname):
             status("Deleting stale file %s" % fname)
             if options.dryRun: continue
@@ -779,7 +813,7 @@ def reindexCallBack(arg, dirname, fnames):
         allows us to re-index the local storage and adjust our structures
         without having to re-download all the mail.
     """
-    (msgIndex, fldIndex, cacheDir) = arg
+    (msgIndex, fldIndex, backupDir) = arg
     for oldSha1 in [f for f in fnames if not f.endswith('.pickle') and msgIndex.has_key(f)]:
         msg = msgIndex[oldSha1]
         fp = open(os.path.join(dirname, oldSha1), 'r')
@@ -790,7 +824,7 @@ def reindexCallBack(arg, dirname, fnames):
             logger.debug("Mismatch %s vs %s", sha1, oldSha1)
             if options.dryRun: continue
 
-            EmailMsg.move(oldSha1, sha1, cacheDir)
+            EmailMsg.move(oldSha1, sha1, backupDir)
             msgIndex[sha1] = msg
             del( msgIndex[oldSha1] )
             for folder in msgIndex[sha1]['folder']:
@@ -801,14 +835,14 @@ def reindexCallBack(arg, dirname, fnames):
             #logger.debug("Good match %s %s" % (dirname, sha1))
 
 
-def houseKeeping(cacheDir, msgIndexFile, fldIndexFile, purge):
+def houseKeeping(backupDir, msgIndexFile, fldIndexFile, purge):
     msgIndex = deserialize(msgIndexFile)
 
     if purge:
-        os.path.walk(cacheDir, purgeCallBack, msgIndex)
+        os.path.walk(backupDir, purgeCallBack, msgIndex)
     else:
         fldIndex = deserialize(fldIndexFile)
-        os.path.walk(cacheDir, reindexCallBack, (msgIndex, fldIndex, cacheDir))
+        os.path.walk(backupDir, reindexCallBack, (msgIndex, fldIndex, backupDir))
         if options.dryRun: return
         serialize(msgIndexFile, msgIndex)
         serialize(fldIndexFile, fldIndex)
@@ -827,7 +861,7 @@ def interact():
 
     s.getFolders()
     s.uid('SEARCH', '5:90')
-    s.saveMsg(5190, '__Test01', options.cacheDir, s.AllMailFolder)
+    s.saveMsg(5190, '__Test01', options.backupDir, s.AllMailFolder)
     """
     try:
         from IPython.Shell import IPShellEmbed
@@ -869,6 +903,7 @@ def setupLogging():
 
     # Log debug messages to a file
     if len(options.logFile) and options.logFile != 'off':
+        rotateFile(options.logFile, 5, move=True)
         fh = logging.FileHandler(options.logFile, "a", encoding = "UTF-8")
         fh.setLevel(logging.DEBUG)
         fh.setFormatter( logging.Formatter('%(asctime)s - %(name)s - %(levelname)-8s - %(message)s') )
@@ -887,7 +922,7 @@ def main(argv=None):
                         help="The email address to log in with (MANDATORY)")
     parser.add_option("-p", "--pwd", dest="pwd",
                         help="The password to log in with (will prompt if missing)")
-    parser.add_option("-d", "--dir", dest="cacheDir",
+    parser.add_option("-d", "--dir", dest="backupDir",
                         help="The backup/restore directory [default: same as email]")
     parser.add_option("-a", "--action", dest="action", default='backup',
                         choices=['backup', 'restore', 'compact', 'printIndex', 'debug'],
@@ -923,22 +958,22 @@ def main(argv=None):
         parser.print_help()
         parser.error("option -e is mandatory")
 
-    if options.cacheDir is None:
-        options.cacheDir = options.email
+    if options.backupDir is None:
+        options.backupDir = options.email
 
-    msgIndexFile = os.path.join(options.cacheDir, "msgIndex.pickle")
-    fldIndexFile = os.path.join(options.cacheDir, "fldIndex.pickle")
+    msgIndexFile = os.path.join(options.backupDir, "msgIndex.pickle")
+    fldIndexFile = os.path.join(options.backupDir, "fldIndex.pickle")
 
     server = None
     if options.action == "backup":
         server = ImapServer(options.server, options.port, options.email, options.pwd)
-        backup(server, options.cacheDir, msgIndexFile, fldIndexFile)
+        backup(server, options.backupDir, msgIndexFile, fldIndexFile)
     elif options.action == "restore":
         server = ImapServer(options.server, options.port, options.email, options.pwd)
-        restore(server, options.cacheDir, msgIndexFile, fldIndexFile)
+        restore(server, options.backupDir, msgIndexFile, fldIndexFile)
     elif options.action == "compact":
-        houseKeeping(options.cacheDir, msgIndexFile, fldIndexFile, True)
-        houseKeeping(options.cacheDir, msgIndexFile, fldIndexFile, False)
+        houseKeeping(options.backupDir, msgIndexFile, fldIndexFile, True)
+        houseKeeping(options.backupDir, msgIndexFile, fldIndexFile, False)
     elif options.action == "printIndex":
         status(deserialize(msgIndexFile))
         status("\n\n")
