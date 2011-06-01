@@ -821,20 +821,22 @@ def interact():
         server = ImapServer(options.server, options.port, options.email, options.pwd)
 
     server.select(server.AllMailFolder, readonly=True)
+    banner = '\nBaGoMa server instance is "s"';
+    instructions = """
+    Hit Ctrl-D to exit interpreter and continue program. Some things to do:
+
+    s.getFolders()
+    s.uid('SEARCH', '5:90')
+    s.saveMsg(5190, '__Test01', options.cacheDir, s.AllMailFolder)
+    """
     try:
         from IPython.Shell import IPShellEmbed
         s = server
-        ipshell = IPShellEmbed('', banner='\nBaGoMa server instance is "s"')
-        instructions = """
-        Hit Ctrl-D to exit interpreter and continue program. Some things to do:
-
-        s.getFolders()
-        s.uid('SEARCH', '5:90')
-        s.saveMsg(5190, '__Test01', options.cacheDir, s.AllMailFolder)
-        """
+        ipshell = IPShellEmbed('', banner=banner)
         ipshell(instructions)
     except ImportError:
-        status("Could not launch the IPython shell\n")
+        import code
+        code.interact(banner + "\n" + instructions, local=dict(s=server, options=options))
 
 
 def setupLogging():
