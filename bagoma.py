@@ -543,14 +543,20 @@ class EmailMsg(dict):
         respect. What's the use of a unique ID, if the server can render it
         invalid at any time by changing the UIDVALIDITY?
         """
-        shaLst = (internaldate,
-            ' '.join(m.get('from', "").split()),
-            ' '.join(m.get('to', "").split()),
-            ' '.join(m.get('cc', "").split()),
-            ' '.join(m.get('date', "").split()),
-            ' '.join(m.get('subject', "").split()),
-            ' '.join(m.get('x-gmail-received', "").split()),
-            ' '.join(m.get('message-id', "").split()) )
+
+        hdrList = ['from', 'to', 'cc', 'date', 'subject', 'x-gmail-received', 'message-id']
+        # We do the join/split business to normalize whitespace
+        shaLst = [' '.join(m.get(hdr, "").split()) for hdr in hdrList]
+        shaLst.insert(0, internaldate)
+
+        goodHdrs = len([hdr for hdr in shaLst if len(hdr)])
+        if goodHdrs < 4:
+            # Expect at least internaldate, message-id, date, and from
+            if goodHdrs <= 1:
+                # Only internaldate?
+                logger.error("No headers to compute SHA1 from. InternalDate = %s" % internaldate)
+            else:
+                logger.warn("Too few headers (%d/%d) to compute reliable SHA1" % (goodHdrs, len(hdrList) + 1))
 
         return hashlib.sha1("\n".join(shaLst)).hexdigest()
 
@@ -798,6 +804,7 @@ def restoreAllMailFld(server, backupDir, oldMsgs, oldFld):
 
 def purgeCallBack(arg, dirname, fnames):
     msgIndex = arg
+    status("\r%s" % dirname, False)
     for fname in [f for f in fnames if not re.search('pickle(\.\d+)?$', f)]:
         if not msgIndex.has_key(fname) and os.path.isfile(fname):
             status("Deleting stale file %s" % fname)
@@ -814,14 +821,34 @@ def reindexCallBack(arg, dirname, fnames):
         without having to re-download all the mail.
     """
     (msgIndex, fldIndex, backupDir) = arg
-    for oldSha1 in [f for f in fnames if not f.endswith('.pickle') and msgIndex.has_key(f)]:
+    status("\r%s" % dirname, False)
+    for oldSha1 in [f for f in fnames if msgIndex.has_key(f)]:
         msg = msgIndex[oldSha1]
         fp = open(os.path.join(dirname, oldSha1), 'r')
+
+        firstLine = fp.readline()
+        if firstLine.startswith('>From - '):
+            # Broken headers that will trip up HeaderParser
+            pass
+        else:
+            fp.seek(0)
+
         parser = HeaderParser()
         pMsg = parser.parse(fp, headersonly=True)
+        fp.close()
         sha1 = EmailMsg.computeSha1(msg['internaldate'], pMsg)
         if sha1 != oldSha1:
+            # If the message is malformed, the parser could fail here, even
+            # though it succeeded in EmailMsg.__init__ because in EmailMsg the
+            # full headers were parsed by Google, and here by HeaderParser.
             logger.debug("Mismatch %s vs %s", sha1, oldSha1)
+            set_trace()
+            fp = open(os.path.join(dirname, oldSha1), 'r')
+            parser = HeaderParser()
+            pMsg = parser.parse(fp, headersonly=True)
+            fp.close()
+            sha1 = EmailMsg.computeSha1(msg['internaldate'], pMsg)
+
             if options.dryRun: continue
 
             EmailMsg.move(oldSha1, sha1, backupDir)
@@ -839,17 +866,24 @@ def houseKeeping(backupDir, msgIndexFile, fldIndexFile, purge):
     msgIndex = deserialize(msgIndexFile)
 
     if purge:
+        status("Purging stale messages\n")
         os.path.walk(backupDir, purgeCallBack, msgIndex)
+        status("\n", False)
     else:
+        status("Re-indexing local messages\n")
         fldIndex = deserialize(fldIndexFile)
         os.path.walk(backupDir, reindexCallBack, (msgIndex, fldIndex, backupDir))
+        status("\n", False)
         if options.dryRun: return
         serialize(msgIndexFile, msgIndex)
         serialize(fldIndexFile, fldIndex)
 
 
-def interact():
+def interact(msgIndexFile, fldIndexFile):
     global server, options
+
+    msgIndex = deserialize(msgIndexFile)
+    fldIndex = deserialize(fldIndexFile)
 
     if server is None:
         server = ImapServer(options.server, options.port, options.email, options.pwd)
@@ -870,7 +904,7 @@ def interact():
         ipshell(instructions)
     except ImportError:
         import code
-        code.interact(banner + "\n" + instructions, local=dict(s=server, options=options))
+        code.interact(banner + "\n" + instructions, local=dict(s=server, options=options, msgIndex=msgIndex, fldIndex=fldIndex))
 
 
 def setupLogging():
@@ -979,7 +1013,7 @@ def main(argv=None):
         status("\n\n")
         status(deserialize(fldIndexFile))
     elif options.action == "debug":
-        interact()
+        interact(msgIndexFile, fldIndexFile)
 
     if server is not None:
         try:
