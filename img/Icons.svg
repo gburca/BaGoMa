@@ -1,0 +1,260 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="1530"
+   height="990"
+   id="svg2"
+   version="1.1"
+   inkscape:version="0.47 r22583"
+   sodipodi:docname="Icons.svg">
+  <defs
+     id="defs4">
+    <inkscape:perspective
+       sodipodi:type="inkscape:persp3d"
+       inkscape:vp_x="0 : 526.18109 : 1"
+       inkscape:vp_y="0 : 1000 : 0"
+       inkscape:vp_z="744.09448 : 526.18109 : 1"
+       inkscape:persp3d-origin="372.04724 : 350.78739 : 1"
+       id="perspective10" />
+    <inkscape:perspective
+       id="perspective14815"
+       inkscape:persp3d-origin="0.5 : 0.33333333 : 1"
+       inkscape:vp_z="1 : 0.5 : 1"
+       inkscape:vp_y="0 : 1000 : 0"
+       inkscape:vp_x="0 : 0.5 : 1"
+       sodipodi:type="inkscape:persp3d" />
+    <inkscape:perspective
+       id="perspective14889"
+       inkscape:persp3d-origin="0.5 : 0.33333333 : 1"
+       inkscape:vp_z="1 : 0.5 : 1"
+       inkscape:vp_y="0 : 1000 : 0"
+       inkscape:vp_x="0 : 0.5 : 1"
+       sodipodi:type="inkscape:persp3d" />
+    <inkscape:perspective
+       id="perspective14963"
+       inkscape:persp3d-origin="0.5 : 0.33333333 : 1"
+       inkscape:vp_z="1 : 0.5 : 1"
+       inkscape:vp_y="0 : 1000 : 0"
+       inkscape:vp_x="0 : 0.5 : 1"
+       sodipodi:type="inkscape:persp3d" />
+    <inkscape:perspective
+       id="perspective15127"
+       inkscape:persp3d-origin="0.5 : 0.33333333 : 1"
+       inkscape:vp_z="1 : 0.5 : 1"
+       inkscape:vp_y="0 : 1000 : 0"
+       inkscape:vp_x="0 : 0.5 : 1"
+       sodipodi:type="inkscape:persp3d" />
+    <inkscape:perspective
+       id="perspective15255"
+       inkscape:persp3d-origin="0.5 : 0.33333333 : 1"
+       inkscape:vp_z="1 : 0.5 : 1"
+       inkscape:vp_y="0 : 1000 : 0"
+       inkscape:vp_x="0 : 0.5 : 1"
+       sodipodi:type="inkscape:persp3d" />
+    <filter
+       id="filter15293"
+       inkscape:label="Feather"
+       inkscape:menu="ABCs"
+       inkscape:menu-tooltip="Blurred mask on the edge without altering the contents"
+       color-interpolation-filters="sRGB">
+      <feGaussianBlur
+         id="feGaussianBlur15295"
+         result="result6"
+         stdDeviation="5" />
+      <feComposite
+         id="feComposite15297"
+         in2="result6"
+         operator="atop"
+         in="SourceGraphic"
+         result="result91" />
+      <feComposite
+         id="feComposite15299"
+         in2="result91"
+         operator="in"
+         result="result92" />
+      <feComposite
+         id="feComposite15301"
+         in2="result92"
+         operator="in" />
+    </filter>
+    <inkscape:perspective
+       id="perspective15313"
+       inkscape:persp3d-origin="0.5 : 0.33333333 : 1"
+       inkscape:vp_z="1 : 0.5 : 1"
+       inkscape:vp_y="0 : 1000 : 0"
+       inkscape:vp_x="0 : 0.5 : 1"
+       sodipodi:type="inkscape:persp3d" />
+    <filter
+       id="filter15293-4"
+       inkscape:label="Feather"
+       inkscape:menu="ABCs"
+       inkscape:menu-tooltip="Blurred mask on the edge without altering the contents"
+       color-interpolation-filters="sRGB">
+      <feGaussianBlur
+         id="feGaussianBlur15295-2"
+         result="result6"
+         stdDeviation="5" />
+      <feComposite
+         id="feComposite15297-8"
+         in2="result6"
+         operator="atop"
+         in="SourceGraphic"
+         result="result91" />
+      <feComposite
+         id="feComposite15299-4"
+         in2="result91"
+         operator="in"
+         result="result92" />
+      <feComposite
+         id="feComposite15301-9"
+         in2="result92"
+         operator="in" />
+    </filter>
+  </defs>
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="0.74270112"
+     inkscape:cx="596.8573"
+     inkscape:cy="134.08137"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     inkscape:window-width="1910"
+     inkscape:window-height="1173"
+     inkscape:window-x="1920"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     showguides="true"
+     inkscape:guide-bbox="true">
+    <sodipodi:guide
+       orientation="0,1"
+       position="848.25509,758.04383"
+       id="guide15355" />
+    <sodipodi:guide
+       orientation="0,1"
+       position="950.58427,224.85492"
+       id="guide15357" />
+    <sodipodi:guide
+       orientation="1,0"
+       position="607.24293,609.9358"
+       id="guide15359" />
+  </sodipodi:namedview>
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(0,-62.36218)">
+    <image
+       y="62.312771"
+       x="-0.84404838"
+       id="image14891"
+       height="512"
+       width="512"
+       xlink:href="file:///home/gburca/data/git/BaGoMa/banner/gmail.png"
+       inkscape:export-filename="/home/gburca/data/git/BaGoMa/backup3.png"
+       inkscape:export-xdpi="8.7991991"
+       inkscape:export-ydpi="8.7991991" />
+    <image
+       y="62.312756"
+       x="929.3327"
+       id="image14965"
+       height="512"
+       width="512"
+       xlink:href="file:///home/gburca/data/git/BaGoMa/banner/Green-Backup-icon.png"
+       inkscape:export-filename="/home/gburca/data/git/BaGoMa/backup3.png"
+       inkscape:export-xdpi="8.7991991"
+       inkscape:export-ydpi="8.7991991" />
+    <image
+       y="167.92142"
+       x="590.00763"
+       id="image15257"
+       height="254.6259"
+       width="299.37341"
+       xlink:href="file:///home/gburca/data/git/BaGoMa/banner/go_next_black.png"
+       inkscape:export-filename="/home/gburca/data/git/BaGoMa/backup3.png"
+       inkscape:export-xdpi="8.7991991"
+       inkscape:export-ydpi="8.7991991" />
+    <path
+       sodipodi:type="arc"
+       style="fill:#666666;filter:url(#filter15293)"
+       id="path15279"
+       sodipodi:cx="721.01685"
+       sodipodi:cy="433.92166"
+       sodipodi:rx="103.0024"
+       sodipodi:ry="21.542986"
+       d="m 824.01925,433.92166 a 103.0024,21.542986 0 1 1 -206.00481,0 103.0024,21.542986 0 1 1 206.00481,0 z"
+       transform="matrix(1.248366,0,0,1.2083333,-162.91884,-25.345294)"
+       inkscape:export-xdpi="8.7991991"
+       inkscape:export-ydpi="8.7991991"
+       inkscape:export-filename="/home/gburca/data/git/BaGoMa/backup3.png" />
+    <image
+       y="827.50726"
+       x="950.58429"
+       id="image14891-3"
+       height="512"
+       width="512"
+       xlink:href="file:///home/gburca/data/git/BaGoMa/banner/gmail.png"
+       inkscape:export-filename="/home/gburca/data/git/BaGoMa/restore.png"
+       inkscape:export-xdpi="8.699194"
+       inkscape:export-ydpi="8.699194" />
+    <image
+       y="823.4679"
+       x="3.8284006"
+       id="image14965-9"
+       height="512"
+       width="512"
+       xlink:href="file:///home/gburca/data/git/BaGoMa/banner/Green-Backup-icon.png"
+       inkscape:export-filename="/home/gburca/data/git/BaGoMa/restore.png"
+       inkscape:export-xdpi="8.699194"
+       inkscape:export-ydpi="8.699194" />
+    <image
+       y="929.0766"
+       x="592.19818"
+       id="image15257-8"
+       height="254.6259"
+       width="299.37341"
+       xlink:href="file:///home/gburca/data/git/BaGoMa/banner/go_next_black.png"
+       inkscape:export-filename="/home/gburca/data/git/BaGoMa/restore.png"
+       inkscape:export-xdpi="8.699194"
+       inkscape:export-ydpi="8.699194" />
+    <path
+       sodipodi:type="arc"
+       style="fill:#666666;filter:url(#filter15293-4)"
+       id="path15279-3"
+       sodipodi:cx="721.01685"
+       sodipodi:cy="433.92166"
+       sodipodi:rx="103.0024"
+       sodipodi:ry="21.542986"
+       d="m 824.01925,433.92166 a 103.0024,21.542986 0 1 1 -206.00481,0 103.0024,21.542986 0 1 1 206.00481,0 z"
+       transform="matrix(1.248366,0,0,1.2083333,-160.72826,735.80987)"
+       inkscape:export-xdpi="8.699194"
+       inkscape:export-ydpi="8.699194"
+       inkscape:export-filename="/home/gburca/data/git/BaGoMa/restore.png" />
+  </g>
+</svg>

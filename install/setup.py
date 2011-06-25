@@ -16,7 +16,7 @@ setup (
     requires = ['imaplib', 'cPickle', 'pprint', 'hashlib', 'time', 'getpass',
       'optparse', 'email.parser'],
 
-    scripts = ['bagoma.py', 'imap_utf7.py'],
+    scripts = ['bagoma.py', 'imap_utf7.py', 'guy.pyw'],
 
     url = 'http://sourceforge.net/projects/bagoma',
     download_url = 'http://sourceforge.net/projects/bagoma/files/',
@@ -28,7 +28,7 @@ setup (
 #(seen/read, flagged) of a message.
 #""",
 
-    long_description = read('README'),
+    long_description = read('../README'),
 
     classifiers = [
         'Development Status :: 4 - Beta',

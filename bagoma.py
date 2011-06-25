@@ -99,6 +99,11 @@ def status(msg, log2logger=True):
     if log2logger: logger.info(msg)
     sys.stdout.flush()
 
+def progressCli(msg):
+    status(msg)
+
+def progressGui(msg):
+    status(msg + "\n")
 
 class ImapServer(imaplib.IMAP4_SSL):
     def __init__(self, serverAddr, serverPort, email, pwd):
@@ -261,7 +266,7 @@ class ImapServer(imaplib.IMAP4_SSL):
             msgUIDs = folder.UIDs
 
         msgCnt = len(msgUIDs)
-        status("Retained %d message(s). Need to D/L %d new message(s).\n" % (len(messages), msgCnt))
+        status("Retained %5d message(s). Need to D/L %5d new message(s).\n" % (len(messages), msgCnt))
         saved = i = 0
         try:
             for uid in msgUIDs:
@@ -287,7 +292,7 @@ class ImapServer(imaplib.IMAP4_SSL):
                     messages[sha1] = msg
                     folder.msgs[uid] = sha1
 
-                status('\r%.0f%% %d/%d ' % (i * 100.0 /msgCnt, i, msgCnt), False)
+                progress('\r%.0f%% %d/%d ' % (i * 100.0 /msgCnt, i, msgCnt))
         except:
             status("\n", False)
             logger.debug("Saved %d/%d messages (%d candidates)" % (saved, msgCnt, i))
@@ -341,7 +346,7 @@ class ImapServer(imaplib.IMAP4_SSL):
             msgUIDs = folder.UIDs
 
         msgCnt = len(msgUIDs)
-        status("Retained %d message(s). Need to transfer %d message(s).\n" % (len(folder.msgs), msgCnt))
+        status("Retained %5d message(s). Need to transfer %5d message(s).\n" % (len(folder.msgs), msgCnt))
         i = 0
         try:
             for uid in msgUIDs:
@@ -361,7 +366,7 @@ class ImapServer(imaplib.IMAP4_SSL):
                         # contains a full list of all current SHA1's
                         logger.warn("New message arrived in %s while indexing %d/%d ?" % (folderName, i, msgCnt))
 
-                status('\r%.0f%% %d/%d ' % (i * 100.0 / msgCnt, i, msgCnt), False)
+                progress('\r%.0f%% %d/%d ' % (i * 100.0 / msgCnt, i, msgCnt))
         except:
             status("\n", False)
             logger.debug("Indexed %d/%d" % (i, msgCnt))
@@ -804,7 +809,7 @@ def restoreAllMailFld(server, backupDir, oldMsgs, oldFld):
 
 def purgeCallBack(arg, dirname, fnames):
     msgIndex = arg
-    status("\r%s" % dirname, False)
+    progress("\r%s" % dirname)
     for fname in [f for f in fnames if not re.search('pickle(\.\d+)?$', f)]:
         if not msgIndex.has_key(fname) and os.path.isfile(fname):
             status("Deleting stale file %s" % fname)
@@ -821,7 +826,7 @@ def reindexCallBack(arg, dirname, fnames):
         without having to re-download all the mail.
     """
     (msgIndex, fldIndex, backupDir) = arg
-    status("\r%s" % dirname, False)
+    progress("\r%s" % dirname)
     for oldSha1 in [f for f in fnames if msgIndex.has_key(f)]:
         msg = msgIndex[oldSha1]
         fp = open(os.path.join(dirname, oldSha1), 'r')
@@ -965,6 +970,8 @@ def main(argv=None):
     parser.add_option("--dryRun", default=False, action="store_true",
                         help="When combined with \"compact\", shows what files \
                         would be deleted [default: %default]")
+    parser.add_option("--gui", default=False, action="store_true",
+                        help="Used when launched by the GUI.")
     parser.add_option("-s", "--server",
                         default="imap.gmail.com",
                         help="The GMail server to use [default: %default]")
@@ -995,6 +1002,12 @@ def main(argv=None):
     if options.backupDir is None:
         options.backupDir = options.email
 
+    global progress
+    if options.gui:
+        progress = progressGui
+    else:
+        progress = progressCli
+
     msgIndexFile = os.path.join(options.backupDir, "msgIndex.pickle")
     fldIndexFile = os.path.join(options.backupDir, "fldIndex.pickle")
 
@@ -1022,7 +1035,7 @@ def main(argv=None):
         except:
             logger.exception("Closing server connection")
 
-    status('Done.\n')
+    status('\nDone.\n')
 
 
 if __name__ == '__main__':

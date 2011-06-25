@@ -9,15 +9,28 @@ bAgOmA - A script to backup a *bag* *o*' *ma*il.
 SYNOPSIS
 ========
 
+This software comes in two flavors:
+
+1. bagoma.py = the full-featured CLI version
+2. gui.pyw = a simple GUI wrapper for bagoma.py
+
 Linux and Friends
 -----------------
 
 `bagoma.py` \[*options*] `-e` <*Email*>
 
+Or, for the CLI-phobic:
+
+`gui.pyw`
+
 Windows
 -------
 
-Download the zip file containing the stand-alone exe, then from a DOS shell:
+Download the zip file containing the stand-alone exe then, execute:
+
+`gui.exe`
+
+The more adventurous can try from a DOS shell:
 
 `bagoma.exe` \[*options*] `-e` <*Email*>
 
@@ -93,12 +106,12 @@ OPTIONS
 -p *PWD*, \--pwd=*PWD*
 :	the password to log in with (will prompt if missing)
 
--d *CACHEDIR*, \--dir=*CACHEDIR*
-:	the backup/restore directory [default: GMailBackup]
+-d *BACKUPDIR*, \--dir=*BACKUPDIR*
+:	the backup/restore directory [default: same as email]
 
 -a *ACTION*, \--action=*ACTION*
-:	the action to perform: backup, restore, compact or printIndex [default:
-	backup]
+:	the action to perform: backup, restore, compact, printIndex or debug.
+	[default: backup]
 
 	* The function of the *backup* and *restore* actions should be obvious.
 
@@ -108,6 +121,13 @@ OPTIONS
 
 	* The *printIndex* action displays all the meta-information BaGoMa
 	operates on. This action is primarily intended for developers.
+
+	* The "debug" action is also intended for developers and drops the user
+	into an interactive python session.
+
+\--dryRun
+:	When combined with the *compact* action, shows what files would be
+	deleted without actually deleting them.
 
 -s *SERVER*, \--server=*SERVER*
 :	the GMail server to use [default: imap.gmail.com]
