@@ -1,3 +1,8 @@
+v01.30
+=================
+	* Add config file for storing passwords
+
+
 v01.20
 =================
 	* Drop the user into an interactive shell for the "debug" action

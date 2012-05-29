@@ -142,6 +142,10 @@ OPTIONS
 -f *LOGFILE*, \--file=*LOGFILE*
 :	the log file (set it to 'off' to disable logging) [default: log.txt]
 
+-c *CONFIG_FILE*, \--config=*CONFIG_FILE*
+:	the config file to use for options not specified on the command line.
+	See below for more details.
+
 \--version
 :	show the version number
 
@@ -164,6 +168,20 @@ For those that know what they're doing:
 
 `python setup.py install`
 
+
+CONFIG FILE
+===========
+
+It's usually not a good idea to provide the password on the command line. When
+BaGoMa is used from a script (cron job), the recommended solution is to create
+a configuration file and use it to store the password. The configuration file
+uses the _ini_ format with the email address as the section. For example:
+
+	[email_1@gmail.com]
+	pwd = pass1
+
+	[email_2@gmail.com]
+	pwd = pass2
 
 LIMITATIONS
 ===========

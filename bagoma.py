@@ -8,9 +8,9 @@ See the README file for full details. Run the script with no arguments to see
 the available options.
 """
 
-__version__ = "1.20"
+__version__ = "1.30"
 __author__ = "Gabriel Burca (gburca dash bagoma at ebixio dot com)"
-__copyright__ = "Copyright (C) 2010-2011 Gabriel Burca. Code under GPL License."
+__copyright__ = "Copyright (C) 2010-2012 Gabriel Burca. Code under GPL License."
 __license__ = """
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -38,6 +38,7 @@ import hashlib
 import time
 import getpass
 import imap_utf7
+import ConfigParser
 from optparse import OptionParser
 from email.parser import HeaderParser
 import logging
@@ -541,7 +542,7 @@ class EmailMsg(dict):
     def computeSha1(internaldate, m):
         """
         Gets the SHA1 of the message.
-        
+
         We don't use UID and UIDVALIDITY because when the UIDVALIDITY changes it
         obsoletes our whole message cache and we would need to re-download all
         the messages again. The IMAP standard is completely broken in this
@@ -707,7 +708,7 @@ def restore(server, backupDir, msgIndexFile, fldIndexFile):
                 logger.error("Failed to copy %s (UID: %s) to %s" % (sha1, allMailUid, folderName))
             else:
                 copied += 1
-            
+
         if copied > 0:
             # Need to figure out the new UID of the messages that were copied.
             # This is more expensive than it needs to be. Would be nice if the IMAP
@@ -753,7 +754,7 @@ def updateLocalUIDs(oldFld, newFld):
     oldFld['UIDVALIDITY'] = newFld['UIDVALIDITY']
     oldFld.UIDs = list(oldFld.msgs.keys())
 
- 
+
 
 def restoreAllMailFld(server, backupDir, oldMsgs, oldFld):
     folder = EmailFolder(server, server.AllMailFolder)
@@ -912,6 +913,19 @@ def interact(msgIndexFile, fldIndexFile):
         code.interact(banner + "\n" + instructions, local=dict(s=server, options=options, msgIndex=msgIndex, fldIndex=fldIndex))
 
 
+def optionsFromConfig(options, config):
+    """
+    Copies missing command line options from the config file. Currently the only
+    option that can be missing is the password.
+    """
+    section = options.email
+    if config.has_section(section):
+        for key, val in options.__dict__.items():
+            if val is None:
+                if config.has_option(section, key):
+                    options.__dict__[key] = config.get(section, key)
+
+
 def setupLogging():
     """
     Sets up logging. To use from the code:
@@ -982,14 +996,21 @@ def main(argv=None):
                         help="The console log level (DEBUG, INFO, WARNING, ERROR, CRITICAL) [default: %default]")
     parser.add_option("-f", "--file", dest="logFile", default='log.txt',
                         help="The log file (set it to 'off' to disable logging) [default: %default]")
-    parser.add_option("--version", default=False, action="store_true", 
+    parser.add_option("-c", "--config", dest="configFile",
+                        help="A configuration file to read settings (the password) from")
+    parser.add_option("--version", default=False, action="store_true",
                         help="show the version number")
 
     (options, args) = parser.parse_args(argv)
+
     setupLogging()
     logger.debug("**** **** **** **** **** **** **** **** **** **** **** ****")
     logger.debug("Version: %s", __version__)
     logger.debug(pprint.pformat( [i for i in options.__dict__.items() if i[0] != 'pwd'] ))
+
+    config = ConfigParser.ConfigParser()
+    if options.configFile is not None:
+        config.read(options.configFile)
 
     if options.version:
         status("Version: %s\n" % __version__)
@@ -998,6 +1019,8 @@ def main(argv=None):
     if options.email is None:
         parser.print_help()
         parser.error("option -e is mandatory")
+
+    optionsFromConfig(options, config)
 
     if options.backupDir is None:
         options.backupDir = options.email
