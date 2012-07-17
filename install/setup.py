@@ -9,7 +9,7 @@ def read(fname):
 
 setup (
     name = 'BaGoMa',
-    version = '1.20',
+    version = '1.30',
     author = 'Gabriel Burca',
     author_email = 'gburca-bagoma@ebixio.com',
 

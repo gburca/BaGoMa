@@ -43,7 +43,7 @@ GUI2Exe_Target_1 = Executable(
 
 setup(
 
-    version = "1.20",
+    version = "1.30",
     description = "No Description",
     author = "Gabriel Burca",
     name = "BaGoMa",

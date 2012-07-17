@@ -44,11 +44,11 @@ WEB SITES
 =========
 
 * Home: <http://sourceforge.net/p/bagoma/>
+* GitHub: <http://github.com/gburca/BaGoMa>
 * Downloads: <http://sourceforge.net/projects/bagoma/files/>
 * Documentation: <http://bagoma.sourceforge.net/> and <http://ebixio.com/blog/2011/05/28/smart-backup-for-your-gmail-account/>
 * Project page: <http://sourceforge.net/projects/bagoma/>
 * Freshmeat: <http://freshmeat.net/projects/bagoma/>
-* GitHub: <http://github.com/gburca/BaGoMa>
 
 
 DESCRIPTION
@@ -73,6 +73,10 @@ label) when used to back up a GMail account. That can significantly increase
 the bandwidth requirements and the amount of storage required for backup.
 Additionally, a faithful restoration of your GMail account might not be
 possible from such a backup.
+
+* BaGoMa allows you to read/verify the local backup with an email client. You
+no longer have to wonder if your backup is good. Fire up an email client and
+verify it (see the MAILDIR section below for details).
 
 
 BaGoMa requires your GMail account to be IMAP accessible. Check the Mail
@@ -110,8 +114,8 @@ OPTIONS
 :	the backup/restore directory [default: same as email]
 
 -a *ACTION*, \--action=*ACTION*
-:	the action to perform: backup, restore, compact, printIndex or debug.
-	[default: backup]
+:	the action to perform: backup, restore, compact, printIndex, maildir or
+	debug. [default: backup]
 
 	* The function of the *backup* and *restore* actions should be obvious.
 
@@ -121,6 +125,11 @@ OPTIONS
 
 	* The *printIndex* action displays all the meta-information BaGoMa
 	operates on. This action is primarily intended for developers.
+
+	* The *maildir* action creates a [Maildir type directory][MaildirFormat]
+	and sym-links all the backed-up email messages into it so that the mail
+	can be inspected using a mail reader that supports Maildir directly
+	(ex: [Mutt]). See the **MAILDIR** section below for more details.
 
 	* The "debug" action is also intended for developers and drops the user
 	into an interactive python session.
@@ -135,6 +144,10 @@ OPTIONS
 \--port=*PORT*
 :	the IMAP port to use for GMail [default: 993]
 
+-m *MAILDIR*, \--maildir=*MAILDIR*
+:	Used with the *maildir* action to specify the Maildir directory to create
+	[default: Maildir.BaGoMa]
+
 -l *LOGLEVEL*, \--log=*LOGLEVEL*
 :	the console log level (DEBUG, INFO, WARNING, ERROR, CRITICAL) [default:
 	WARNING]
@@ -144,7 +157,7 @@ OPTIONS
 
 -c *CONFIG_FILE*, \--config=*CONFIG_FILE*
 :	the config file to use for options not specified on the command line.
-	See below for more details.
+	See below for more details. [default: .BaGoMa]
 
 \--version
 :	show the version number
@@ -182,6 +195,53 @@ uses the _ini_ format with the email address as the section. For example:
 
 	[email_2@gmail.com]
 	pwd = pass2
+
+
+MAILDIR
+=======
+
+Note: Before spending time on the details in this section, be aware that this
+feature makes use of symbolic links (symlinks), so if you're not on a UNIX
+machine it will probably not work for you.
+
+Having all the email messages available locally as simple files has certain
+advantages, such as being able to use standard UNIX tools such as `grep` to
+search through them. It would be even more useful however if it were possible
+to use a full-featured email client (MUA) to navigate through the backup and
+take advantage of all the MUA features. This feature allows you to do just
+that.
+
+First a word of CAUTION. Any modifications made by the MUA may corrupt the
+backup. BaGoMa will not check for local modifications made to the backup. As
+long as the MUA only modifies the symlinks (by renaming, moving, or deleting
+them) you should be OK. To be on the safe side, I suggest changing the
+permissions on the backup directory contents so that the MUA can not make any
+modifications (for example, run the MUA as an unprivileged user that has only
+read permissions).
+
+To use this feature, run:
+
+`python bagoma.py` `-e` <*Email*\> `-a maildir`
+
+BaGoMa will create a directory called `Maildir.BaGoMa` and populate it with
+symlinks to messages in your backup. This new directory is in a proper [Maildir
+format][MaildirFormat], so it can be accessed with a MUA that handles the
+Maildir format. A sample configuration file
+[`muttrc.BaGoMa`](http://github.com/gburca/BaGoMa/blob/master/mutt.BaGoMa) is
+included and can be used with [Mutt] to access `Maildir.BaGoMa`. To view the
+messages modify `muttrc.BaGoMa` to point to the location of your
+`Maildir.BaGoMa` directory and run:
+
+`mutt -R -F muttrc.BaGoMa`
+
+If that doesn't work, bypass the system config file by adding the `-n` option:
+
+`mutt -n -R -F muttrc.BaGoMa`
+
+If you figure out how to get this working with other email clients, please
+consider documenting your experience (and sharing it on [GitHub]) so that
+others may benefit as well.
+
 
 LIMITATIONS
 ===========
@@ -241,18 +301,18 @@ If you want to help, see the _TODO_ file.
 
 REPORTING BUGS
 ==============
-Bugs can be reported at the project's [SourceForge] page. Better yet, provide
-patches to fix the bugs.
+Bugs can be reported at the project's [GitHub] or [SourceForge] page. Better
+yet, provide patches through [GitHub] to fix the bugs.
 
 Bug reports should include relevant portions of the log file.
 
 
 COPYRIGHT
 =========
-Copyright (C) 2011 by Gabriel Burca. License GPLv3+: GNU GPL version 3 or later
-<http://gnu.org/licenses/gpl.html>.  This is free software: you are free to
-change and redistribute it.  There is NO WARRANTY, to the extent permitted by
-law.
+Copyright (C) 2011-2012 by Gabriel Burca. License GPLv3+: GNU GPL version 3 or
+later <http://gnu.org/licenses/gpl.html>.  This is free software: you are free
+to change and redistribute it.  There is NO WARRANTY, to the extent permitted
+by law.
 
 
 [Markdown]:		http://daringfireball.net/projects/markdown/syntax
@@ -261,3 +321,6 @@ law.
 [PythonDownload]:	http://www.python.org/download/releases/
 [ActiveState]:		http://www.activestate.com/activepython/downloads
 [CygWin]:		http://www.cygwin.com
+[GitHub]:		http://github.com/gburca/BaGoMa
+[MaildirFormat]:	http://cr.yp.to/proto/maildir.html
+[Mutt]:			http://www.mutt.org

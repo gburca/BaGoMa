@@ -1,0 +1,26 @@
+# Used to read a local Maildir directory directly. Usage:
+#	mutt -R -F muttrc.BaGoMa
+#	OR if that doesn't work, bypass the system config file:
+#	mutt -n -R -F muttrc.BaGoMa
+
+# Modify all occurences of Maildir.BaGoMa to point to the actual location of that directory.
+
+set mbox_type=Maildir
+
+set folder="~/data/Maildir.BaGoMa"
+set mask="!^\\.[^.]"
+set mbox="~/data/Maildir.BaGoMa"
+set record="+.[Gmail]/Sent Mail"
+set postponed="+.[Gmail]/Drafts"
+set spoolfile="~/data/Maildir.BaGoMa"
+
+# Restrict the headers shown
+ignore *
+unignore from: subject to cc date x-mailer x-url user-agent
+hdr_order date from to cc subject
+
+mailboxes `echo -n "+ "; find ~/data/Maildir.BaGoMa -maxdepth 1 -type d -name ".*" -printf "+'%f' "`
+
+macro index c "<change-folder>?<toggle-mailboxes>" "open a different folder"
+macro pager c "<change-folder>?<toggle-mailboxes>" "open a different folder"
+

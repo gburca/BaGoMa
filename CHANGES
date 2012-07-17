@@ -1,9 +1,19 @@
-v01.30
+v01.40 2012-07-17
 =================
-	* Add config file for storing passwords
+	* Allow email clients to read/verify the local backup by exposing the
+	messages through a Maildir formatted directory.
+	* Added new 'stats' action. BaGoMa needs to detect which folder is used
+	for "Sent Mail" before stats can be generated, so it won't work on an
+	old backup until you update it by using the 'backup' action first.
 
 
-v01.20
+v01.30 2012-05-29
+=================
+	* Added config file for storing passwords
+	* Added simple GUI
+
+
+v01.20 2011-06-24
 =================
 	* Drop the user into an interactive shell for the "debug" action
 	* Decode UTF-7 folder names using imap_utf7.py from IMAPClient

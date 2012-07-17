@@ -8,7 +8,7 @@ See the README file for full details. Run the script with no arguments to see
 the available options.
 """
 
-__version__ = "1.30"
+__version__ = "1.40"
 __author__ = "Gabriel Burca (gburca dash bagoma at ebixio dot com)"
 __copyright__ = "Copyright (C) 2010-2012 Gabriel Burca. Code under GPL License."
 __license__ = """
@@ -39,9 +39,12 @@ import time
 import getpass
 import imap_utf7
 import ConfigParser
+import logging
 from optparse import OptionParser
 from email.parser import HeaderParser
-import logging
+from email.utils import getaddresses, parsedate_tz, mktime_tz
+from copy import deepcopy
+from xml.dom.minidom import Document
 from types import *
 
 # For debugging
@@ -55,10 +58,22 @@ else:
 
 options = None
 
-# Special Google folder FLAGS we should ignore (Spam, Trash, Drafts, etc...)
-IgnoredFolderFlags = set(['\\Spam', '\\Trash'])
+# Special Google folder FLAGS returned with XLIST
+SpecialFolderFlags = frozenset([
+    '\\Inbox'       , # Inbox
+    '\\AllMail'     , # [Gmail]/All Mail
+    '\\Trash'       , # [Gmail]/Trash
+    '\\Spam'        , # [Gmail]/Spam
+    '\\Drafts'      , # [Gmail]/Drafts
+    '\\Sent'        , # [Gmail]/Sent Mail
+    '\\Important'   , # [Gmail]/Important
+    '\\Starred'     , # [GMail]/Starred
+])
 
-# Folders to ignore (some EMail clients create their own Trash, etc...)
+# Special Google folder FLAGS we should ignore (choose from set above)
+IgnoredFolderFlags = frozenset(['\\Spam', '\\Trash'])
+
+# Folders to ignore by name (some EMail clients create their own Trash, etc...)
 IgnoredFolders = ['Spam', 'Trash']
 
 # Tell imaplib that XLIST works the same way as LIST
@@ -70,6 +85,9 @@ lstRspMatch = re.compile(r'\((?P<flags>.*?)\) "(?P<delimiter>.*)" (?P<name>.*)')
 intDateMatch= re.compile(r'\bINTERNALDATE "([^"]+)"')
 flagsMatch  = re.compile(r'\bFLAGS \(([^\)]*)\)')
 
+emailMatch  = re.compile(r'([\w\-\.+]+@((\w[\w\-]+)\.)+[\w\-]+)')
+
+DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 def serialize(filename, value):
     f = open(filename, 'w')
@@ -117,12 +135,7 @@ class ImapServer(imaplib.IMAP4_SSL):
         logger.info('Logging in as %s ...', email)
         self.login(email, pwd)
 
-        # Discover the special folders (which change with country):
-        # [Gmail]/All Mail  = \AllMail
-        # [Gmail]/Trash     = \Trash
-        # [Gmail]/Spam      = \Spam
-        # [Gmail]/Drafts    = \Drafts
-
+        # Discover special folders by looking at flags (names changes with country):
         self.AllMailFolder = '[Gmail]/All Mail'
         self.IgnoredFolders = list(IgnoredFolders)
 
@@ -234,7 +247,11 @@ class ImapServer(imaplib.IMAP4_SSL):
                 else:
                     logger.error("Failed to retrieve UID %d from server" % (uid))
         else:
-            logger.warn("File %s already exists" % (shaHex))
+            # This could be because the previous backup did not finish
+            # (message was D/L'ed but folder indexing did not complete, so we
+            # think it's a new message and are trying to D/L it again), OR it's
+            # a true SHA1 duplicate.
+            logger.warn("File %s already exists." % (shaHex))
 
         return False
 
@@ -299,8 +316,8 @@ class ImapServer(imaplib.IMAP4_SSL):
             logger.debug("Saved %d/%d messages (%d candidates)" % (saved, msgCnt, i))
             logger.exception("Could not save all messages")
 
-        if len(messages) < 20:
-            logger.debug(pprint.pformat(messages))
+        #if len(messages) < 20:
+        #    logger.debug(pprint.pformat(messages))
         status("\nSaved %s new message(s)\n" % (saved))
         return (messages, folder)
 
@@ -315,29 +332,46 @@ class ImapServer(imaplib.IMAP4_SSL):
 
         try:
             for folderName in [f for f in self.getFolders() if f not in ignoreFolders]:
-                folder = self.indexOneFolder(messages, oldFlds.get(folderName, None), folderName)
+                try:
+                    folder = self.indexOneFolder(messages, oldFlds.get(folderName, None), folderName)
+                except:
+                    logger.exception("Could not proerly index folder: %s." % (folderName))
+                    folder = None
 
                 if folder is not None:
                     folderInfo[folderName] = folder
                 else:
-                    # TODO: Error handling
+                    # Keep old folder data, otherwise we'll have to fully re-index next time
+                    if oldFlds.has_key(folderName):
+                        folderInfo[folderName] = oldFlds[folderName]
                     continue
         except:
             logger.exception("Could not index all folders.")
+            # Old folder info is better than no info at all.
+            folderInfo = oldFlds
 
         return (folderInfo, messages)
 
 
     def indexOneFolder(self, messages, oldFld, folderName):
         """
-        messages    could be None
-        oldFld      could be None - results in full indexing
+        Creates an EmailFolder object and populates its EmailFolder.msgs
+        dictionary that maps UID => SHA1, either by copying the UID/SHA1 from
+        oldFld (for old messages that were previously backed up), or by
+        retrieving the message headers from the server by UID and computing the
+        SHA1.
+
+        Returns the created EmailFolder
+
+        @param messages     Could be None.
+        @param oldFld       If None, the new folder is fully indexed, otherwise
+                            reuse the oldFld data to initialize the new folder.
+        @param folderName   Name of the folder to index - mandatory
         """
         folder = EmailFolder(self, folderName)
         if folder.OK:
             status("Indexing: %s\n" % imap_utf7.decode(folderName))
         else:
-            # TODO: Error handling
             logger.error("Unable to select folder: %s" % folderName)
             return None
 
@@ -360,8 +394,9 @@ class ImapServer(imaplib.IMAP4_SSL):
 
                 folder.msgs[uid] = msg['sha1']
                 if messages is not None:
-                    if messages.has_key(msg['sha1']):
-                        messages[msg['sha1']]['folder'].append(folderName)
+                    sha1 = msg['sha1']
+                    if messages.has_key(sha1) and folderName not in messages[sha1]['folder']:
+                        messages[sha1]['folder'].append(folderName)
                     else:
                         # Assumes saveAllMsgs was called first, and messages
                         # contains a full list of all current SHA1's
@@ -371,13 +406,21 @@ class ImapServer(imaplib.IMAP4_SSL):
         except:
             status("\n", False)
             logger.debug("Indexed %d/%d" % (i, msgCnt))
-            logger.exception("Could not index folder %s" % folderName)
+            logger.exception("Could not fully index folder %s" % folderName)
 
         status("\n", False)
         return folder
 
 
 class EmailFolder(dict):
+    """
+    When a folder object is created, it retrieves from the server:
+        1. The folder's IMAP XLIST data (see parseSelectRsp)
+        2. The folder's type (see SpecialFolderFlags)
+        3. The UIDs of all messages in the folder
+
+    Only the first 2 items are saved when the folder info is serialized to disk
+    """
     def __init__(self, server, folder):
         self.OK = False
         self.name = folder
@@ -390,6 +433,14 @@ class EmailFolder(dict):
         # This is maintained separate from self.msgs because when a folder
         # object is created by this __init__, all we have is UIDs.
         self.UIDs = []
+
+        result, data = server.xlist("", folder)
+        if result == 'OK':
+            flags, delimiter, imap_folder = ImapServer.parseListResponse(data[0])
+            self.update( {'Type' : frozenset(flags.split()).intersection(SpecialFolderFlags)} )
+        else:
+            self.update( {'Type' : frozenset()} )
+
 
         result, data = server.select(folder, readonly=True)
         if result == 'OK':
@@ -423,7 +474,6 @@ class EmailFolder(dict):
 
     @staticmethod
     def parseSelectRsp(server):
-        #FLAGS = server.response('FLAGS')[1][0].strip(')(')
         FLAGS = imaplib.ParseFlags( server.response('FLAGS')[1][0] )
         UIDVALIDITY = int(server.response('UIDVALIDITY')[1][0])
         RECENT = int(server.response('RECENT')[1][0])
@@ -509,7 +559,6 @@ class EmailFolder(dict):
         return msgUIDs
 
 
-
 class EmailMsg(dict):
     def __init__(self, server, uid):
         """The folder must be selected on the server before this function is called"""
@@ -576,6 +625,169 @@ class EmailMsg(dict):
         os.renames(srcPath, dstPath)
 
 
+class dict2xml(object):
+    """
+    Based on http://code.activestate.com/recipes/577739-dict2xml/
+    """
+    doc     = Document()
+
+    def __init__(self, structure):
+        """
+        Usage:
+            myDict = {......}
+            xml = dict2xml( {'MyRoot': myDict} )
+
+        @param structure Must be a dictionary, with a single key (the name of
+        the root/top element)
+        """
+        if len(structure) == 1:
+            rootName    = str(structure.keys()[0])
+            self.root   = self.doc.createElement(rootName)
+
+            self.doc.appendChild(self.root)
+            self.build(self.root, structure[rootName])
+
+    def build(self, father, structure):
+        if type(structure) == dict:
+            for k in sorted(structure.keys()):
+                tag = self.doc.createElement(str(k))
+                father.appendChild(tag)
+                self.build(tag, structure[k])
+
+        elif type(structure) == list:
+            grandFather = father.parentNode
+            tagName     = father.tagName
+            grandFather.removeChild(father)
+            for l in structure:
+                tag = self.doc.createElement(tagName)
+                self.build(tag, l)
+                grandFather.appendChild(tag)
+
+        else:
+            data    = str(structure)
+            tag     = self.doc.createTextNode(data)
+            father.appendChild(tag)
+
+    def display(self):
+        print self.doc.toprettyxml(indent="  ")
+
+
+class Stats(object):
+    """
+    Computes some basic email statistics
+    """
+
+    @staticmethod
+    def extractStats(backupDir, msgIndexFile, fldIndexFile):
+        """
+        TODO:
+            Messages received per day
+            Messages sent per day
+        """
+        msgIndex = deserialize(msgIndexFile)
+        fldIndex = deserialize(fldIndexFile)
+
+        timeStats = {'Yrs':{}, 'DOW':{}, 'Hrs':{}}
+        stats = {'CountTotalMsgs':0, 'CountListMsgs':0,
+                 'CountSentMsgs':0, 'CountRcvdMsgs':0,
+                 'TimeAll':deepcopy(timeStats),
+                 'TimeSent':deepcopy(timeStats),
+                 'TimeRcvd':deepcopy(timeStats)}
+        hFrom = {}
+        hTo = {}
+
+        SentFolder = [f[0] for f in fldIndex.items() if '\\Sent' in f[1]['Type']][0]
+        logger.debug("SentFolder=" + SentFolder)
+        idx = 0
+        status("Computing stats for %d message(s).\n" % (len(msgIndex)))
+
+        for sha1 in msgIndex.keys():
+            idx += 1
+            fp = open(os.path.join(backupDir, sha1[0:2], sha1), 'r')
+
+            firstLine = fp.readline()
+            if firstLine.startswith('>From - '):
+                # Broken headers that will trip up HeaderParser
+                pass
+            else:
+                fp.seek(0)
+
+            parser = HeaderParser()
+            pMsg = parser.parse(fp, headersonly=True)
+            fp.close()
+
+            stats['CountTotalMsgs'] = stats['CountTotalMsgs'] + 1
+            if pMsg.get('list-id', ""):
+                stats['CountListMsgs'] = stats['CountListMsgs'] + 1
+                continue
+
+            date = parsedate_tz(pMsg.get('date', ""))
+            if date != None:
+                date = time.localtime( mktime_tz(date) )
+            Stats.saveDateStats(stats['TimeAll'], date)
+
+            #set_trace()
+            if SentFolder in msgIndex[sha1]['folder']:
+                stats['CountSentMsgs'] = stats['CountSentMsgs'] + 1
+                try:
+                    receivers = pMsg.get_all('to', []) + pMsg.get_all('cc', [])
+                    for toEmail in [m[1].lower() for m in getaddresses(receivers) if len(m[1]) > 0]:
+                        hTo[toEmail] = hTo.setdefault(toEmail, 0) + 1
+                    Stats.saveDateStats(stats['TimeSent'], date)
+                except:
+                    logger.exception("Exception parsing recipient data")
+            else:
+                stats['CountRcvdMsgs'] = stats['CountRcvdMsgs'] + 1
+                try:
+                    for fromEmail in [m[1].lower() for m in getaddresses(pMsg.get_all('from', []))]:
+                        hFrom[fromEmail] = hFrom.setdefault(fromEmail, 0) + 1
+                    Stats.saveDateStats(stats['TimeRcvd'], date)
+                except:
+                    logger.exception("Exception parsing sender data")
+
+            progress('\r%.0f%% %d/%d ' % (idx * 100.0 / len(msgIndex), idx, len(msgIndex)))
+
+
+        xml = dict2xml({'Stats': stats})
+
+        senders = xml.doc.createElement("Senders")
+        xml.root.appendChild(senders)
+        for email, count in sorted(hFrom.items(), key = lambda x: x[1], reverse=True):
+            sender = xml.doc.createElement("Sender")
+            sender.setAttribute("Email", email)
+            sender.setAttribute("Count", str(count))
+            senders.appendChild(sender)
+
+        rcvrs = xml.doc.createElement("Receivers")
+        xml.root.appendChild(rcvrs)
+        for email, count in sorted(hTo.items(), key = lambda x: x[1], reverse=True):
+            rcvr = xml.doc.createElement("Receiver")
+            rcvr.setAttribute("Email", email)
+            rcvr.setAttribute("Count", str(count))
+            rcvrs.appendChild(rcvr)
+
+        output = open("stats-{0}.xml".format(options.email), 'w')
+        try:
+            xml.doc.writexml(output, encoding='utf-8', indent='  ', addindent='  ', newl="\n")
+        finally:
+            output.close()
+
+
+    @staticmethod
+    def saveDateStats(stats, date):
+        if date is None:
+            return
+
+        key = "Yr_%04d" % date.tm_year
+        stats['Yrs'][key] = stats['Yrs'].setdefault(key, 0) + 1
+
+        key = "Hr_%02d" % date.tm_hour
+        stats['Hrs'][key] = stats['Hrs'].setdefault(key, 0) + 1
+
+        key = "DOW_%d_%s" % (date.tm_wday, DOW[date.tm_wday])
+        stats['DOW'][key] = stats['DOW'].setdefault(key, 0) + 1
+
+
 def rotateFile(fName, levels, move=False):
     """Recursively copies (or moves) fName.1 to fName.2, fName to fName.1,
     etc... retaining files up to fName.n where n == levels"""
@@ -631,8 +843,8 @@ def backup(server, backupDir, msgIndexFile, fldIndexFile):
         if len(msgIndexFile) > 0: serialize(msgIndexFile, messages)
         if len(fldIndexFile) > 0: serialize(fldIndexFile, newFlds)
 
-        if len(messages) < 20:
-            logger.debug(pprint.pformat(messages))
+        #if len(messages) < 20:
+        #    logger.debug(pprint.pformat(messages))
     else:
         logger.info("Not enough messages to back up")
 
@@ -753,7 +965,6 @@ def updateLocalUIDs(oldFld, newFld):
 
     oldFld['UIDVALIDITY'] = newFld['UIDVALIDITY']
     oldFld.UIDs = list(oldFld.msgs.keys())
-
 
 
 def restoreAllMailFld(server, backupDir, oldMsgs, oldFld):
@@ -885,6 +1096,74 @@ def houseKeeping(backupDir, msgIndexFile, fldIndexFile, purge):
         serialize(fldIndexFile, fldIndex)
 
 
+def createMaildir(backupDir, msgIndexFile, emailAddr, maildir):
+    """
+    Creates a Maildir type directory and sym-links all the backed-up email
+    messages into it so that the mail can be inspected using a mail reader that
+    supports Maildir directly (ex: mutt).
+
+    CAVEAT LECTOR: Any modifications made by the mail reader may corrupt the
+    backup. BaGoMa will not check for local modifications. Renaming, moving, or
+    deleting the sym-links is allowed since that doesn't impact the actual
+    backup. MUA's should rename the links to add/remove flags. Pointing an IMAP
+    server (ex: Dovecot) to the generated directory has not been tested.
+
+    The filenames follow (loosely) the format specified at:
+        http://cr.yp.to/proto/maildir.html
+    The timestamp part of the filename is made up. Any MUA that relies on it
+    instead of the information in the message headers will not function
+    properly.
+
+    @param backupDir The directory containing the backed up email
+    @param msgIndexFile
+    @param fldIndexFile
+    @param emailAddr Used to extract the host/domain name
+    @param maildir The path to the Maildir type directory to be created. Must
+    not exist, or the function will refuse to overwrite it.
+    """
+
+    if os.path.exists(maildir):
+        logger.error("Maildir '%s' already exists. Refusing to overwrite." % (maildir))
+        return
+
+    msgIndex = deserialize(msgIndexFile)
+    hostname = emailMatch.search(emailAddr).group(3).lower()
+    timestamp = int(time.time())
+    deliveryId = 0
+    msgCnt = len(msgIndex)
+    flagMap = {'\\Flagged' : 'F', '\\Seen' : 'S'}   # Gmail->Maildir mapping
+    status("Creating Maildir '%s' for %d message(s).\n" % (maildir, msgCnt))
+
+    for (sha1, msg) in msgIndex.items():
+        srcFile = os.path.abspath( os.path.join(backupDir, sha1[0:2], sha1) )
+        if not os.path.exists(srcFile):
+            logger.debug("Skipping missing file/email: %s" % (srcFile))
+            continue
+
+        flags = list()
+        for flag in msg['flags'].split(' '):
+            if flag in flagMap.keys():
+                flags.append(flagMap[flag])
+        flags.sort()    # Flags are supposed to be sorted
+        flags = ''.join(flags)
+
+        for folder in msg['folder']:
+            if folder == 'INBOX':
+                destDir = maildir
+            else:
+                destDir = os.path.join(maildir, "." + folder.replace('/', '.'))
+            if not os.path.exists(os.path.join(destDir, 'cur')):
+                for subDir in ('cur', 'new', 'tmp'):
+                    os.makedirs(os.path.join(destDir, subDir), mode=0775)
+            destDir = os.path.join(destDir, 'cur')
+            msgLink = "%d.%06d_0.%s:2,%s" % (timestamp, deliveryId, hostname, flags)
+            os.symlink(srcFile, os.path.join(destDir, msgLink))
+            timestamp -= 1
+
+        deliveryId += 1
+        progress('\r%.0f%% %d/%d ' % (deliveryId * 100.0 /msgCnt, deliveryId, msgCnt))
+
+
 def interact(msgIndexFile, fldIndexFile):
     global server, options
 
@@ -974,13 +1253,14 @@ def main(argv=None):
     parser.add_option("-e", "--email", dest="email",
                         help="The email address to log in with (MANDATORY)")
     parser.add_option("-p", "--pwd", dest="pwd",
-                        help="The password to log in with (will prompt if missing)")
+                        help="The password to log in with (will prompt if \
+                        missing and not present in the config file either)")
     parser.add_option("-d", "--dir", dest="backupDir",
                         help="The backup/restore directory [default: same as email]")
     parser.add_option("-a", "--action", dest="action", default='backup',
-                        choices=['backup', 'restore', 'compact', 'printIndex', 'debug'],
-                        help="The action to perform: backup, restore, compact, \
-                        printIndex or debug [default: %default]")
+                        choices=['backup', 'restore', 'compact', 'printIndex', 'stats', 'maildir', 'debug'],
+                        help="The action to perform: backup, restore, stats, maildir, \
+                        compact, printIndex or debug [default: %default]")
     parser.add_option("--dryRun", default=False, action="store_true",
                         help="When combined with \"compact\", shows what files \
                         would be deleted [default: %default]")
@@ -991,13 +1271,16 @@ def main(argv=None):
                         help="The GMail server to use [default: %default]")
     parser.add_option("--port", default=993,
                         help="The IMAP port to use for GMail [default: %default]")
+    parser.add_option("-m", "--maildir", dest="maildir", default="Maildir.BaGoMa",
+                        help="Used with the \"maildir\" action to specify where \
+                        to create the Maildir directory [default: %default]")
     parser.add_option("-l", "--log", dest="logLevel", default="WARNING",
                         choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
                         help="The console log level (DEBUG, INFO, WARNING, ERROR, CRITICAL) [default: %default]")
     parser.add_option("-f", "--file", dest="logFile", default='log.txt',
                         help="The log file (set it to 'off' to disable logging) [default: %default]")
-    parser.add_option("-c", "--config", dest="configFile",
-                        help="A configuration file to read settings (the password) from")
+    parser.add_option("-c", "--config", dest="configFile", default=".BaGoMa",
+                        help="A configuration file to read settings (the password) from [default: %default]")
     parser.add_option("--version", default=False, action="store_true",
                         help="show the version number")
 
@@ -1009,7 +1292,7 @@ def main(argv=None):
     logger.debug(pprint.pformat( [i for i in options.__dict__.items() if i[0] != 'pwd'] ))
 
     config = ConfigParser.ConfigParser()
-    if options.configFile is not None:
+    if os.path.exists(options.configFile):
         config.read(options.configFile)
 
     if options.version:
@@ -1048,6 +1331,10 @@ def main(argv=None):
         status(deserialize(msgIndexFile))
         status("\n\n")
         status(deserialize(fldIndexFile))
+    elif options.action == "stats":
+        Stats.extractStats(options.backupDir, msgIndexFile, fldIndexFile)
+    elif options.action == "maildir":
+        createMaildir(options.backupDir, msgIndexFile, options.email, options.maildir)
     elif options.action == "debug":
         interact(msgIndexFile, fldIndexFile)
 
