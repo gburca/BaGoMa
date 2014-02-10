@@ -1321,7 +1321,7 @@ def main(argv=None):
     lock = LockFile(os.path.join(options.backupDir, "BaGoMa"))
     if lock.is_locked():
         logger.error("Failed to acquire application lock. Another BaGoMa instance is running.")
-        logger.error("If no other instance is running, manually delete: " + lock.path)
+        logger.error("If no other instance is running, manually delete: " + lock.lock_file)
     else:
         with lock:
 
