@@ -1,6 +1,6 @@
 .PHONY: clean install dist doc win upload
 PROJECT=BaGoMa
-WIN_PYTHON27=/cygdrive/c/Utility/Python271
+WIN_PYTHON27=/cygdrive/c/Utility/Python274
 WIN_PYTHON32=/cygdrive/c/Utility/Python32
 
 clean:
