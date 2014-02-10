@@ -10,7 +10,7 @@ the available options.
 
 __version__ = "1.40"
 __author__ = "Gabriel Burca (gburca dash bagoma at ebixio dot com)"
-__copyright__ = "Copyright (C) 2010-2012 Gabriel Burca. Code under GPL License."
+__copyright__ = "Copyright (C) 2010-2014 Gabriel Burca. Code under GPL License."
 __license__ = """
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -40,12 +40,13 @@ import getpass
 import imap_utf7
 import ConfigParser
 import logging
-from optparse import OptionParser
+import argparse
 from email.parser import HeaderParser
 from email.utils import getaddresses, parsedate_tz, mktime_tz
 from copy import deepcopy
 from xml.dom.minidom import Document
 from types import *
+from lockfile import LockFile
 
 # For debugging
 try:
@@ -1248,43 +1249,44 @@ def main(argv=None):
     if argv is None:
         argv = sys.argv
 
-    usage = "usage: %prog [options] -e <Email>"
-    parser = OptionParser(usage = usage)
-    parser.add_option("-e", "--email", dest="email",
+    usage = "usage: %(prog)s [options] -e <Email>"
+    parser = argparse.ArgumentParser(usage=usage)
+
+    parser.add_argument("-e", "--email", dest="email",
                         help="The email address to log in with (MANDATORY)")
-    parser.add_option("-p", "--pwd", dest="pwd",
+    parser.add_argument("-p", "--pwd", dest="pwd",
                         help="The password to log in with (will prompt if \
                         missing and not present in the config file either)")
-    parser.add_option("-d", "--dir", dest="backupDir",
+    parser.add_argument("-d", "--dir", dest="backupDir",
                         help="The backup/restore directory [default: same as email]")
-    parser.add_option("-a", "--action", dest="action", default='backup',
+    parser.add_argument("-a", "--action", dest="action", default='backup',
                         choices=['backup', 'restore', 'compact', 'printIndex', 'stats', 'maildir', 'debug'],
                         help="The action to perform: backup, restore, stats, maildir, \
-                        compact, printIndex or debug [default: %default]")
-    parser.add_option("--dryRun", default=False, action="store_true",
+                        compact, printIndex or debug [default: %(default)s]")
+    parser.add_argument("--dryRun", default=False, action="store_true",
                         help="When combined with \"compact\", shows what files \
-                        would be deleted [default: %default]")
-    parser.add_option("--gui", default=False, action="store_true",
+                        would be deleted [default: %(default)s]")
+    parser.add_argument("--gui", default=False, action="store_true",
                         help="Used when launched by the GUI.")
-    parser.add_option("-s", "--server",
+    parser.add_argument("-s", "--server",
                         default="imap.gmail.com",
-                        help="The GMail server to use [default: %default]")
-    parser.add_option("--port", default=993,
-                        help="The IMAP port to use for GMail [default: %default]")
-    parser.add_option("-m", "--maildir", dest="maildir", default="Maildir.BaGoMa",
+                        help="The GMail server to use [default: %(default)s]")
+    parser.add_argument("--port", default=993,
+                        help="The IMAP port to use for GMail [default: %(default)s]")
+    parser.add_argument("-m", "--maildir", dest="maildir", default="Maildir.BaGoMa",
                         help="Used with the \"maildir\" action to specify where \
-                        to create the Maildir directory [default: %default]")
-    parser.add_option("-l", "--log", dest="logLevel", default="WARNING",
+                        to create the Maildir directory [default: %(default)s]")
+    parser.add_argument("-l", "--log", dest="logLevel", default="WARNING",
                         choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
-                        help="The console log level (DEBUG, INFO, WARNING, ERROR, CRITICAL) [default: %default]")
-    parser.add_option("-f", "--file", dest="logFile", default='log.txt',
-                        help="The log file (set it to 'off' to disable logging) [default: %default]")
-    parser.add_option("-c", "--config", dest="configFile", default=".BaGoMa",
-                        help="A configuration file to read settings (the password) from [default: %default]")
-    parser.add_option("--version", default=False, action="store_true",
+                        help="The console log level (DEBUG, INFO, WARNING, ERROR, CRITICAL) [default: %(default)s]")
+    parser.add_argument("-f", "--file", dest="logFile", default='log.txt',
+                        help="The log file (set it to 'off' to disable logging) [default: %(default)s]")
+    parser.add_argument("-c", "--config", dest="configFile", default=".BaGoMa",
+                        help="A configuration file to read settings (the password) from [default: %(default)s]")
+    parser.add_argument("--version", default=False, action="store_true",
                         help="show the version number")
 
-    (options, args) = parser.parse_args(argv)
+    options = parser.parse_args()
 
     setupLogging()
     logger.debug("**** **** **** **** **** **** **** **** **** **** **** ****")
@@ -1317,33 +1319,40 @@ def main(argv=None):
     msgIndexFile = os.path.join(options.backupDir, "msgIndex.pickle")
     fldIndexFile = os.path.join(options.backupDir, "fldIndex.pickle")
 
-    server = None
-    if options.action == "backup":
-        server = ImapServer(options.server, options.port, options.email, options.pwd)
-        backup(server, options.backupDir, msgIndexFile, fldIndexFile)
-    elif options.action == "restore":
-        server = ImapServer(options.server, options.port, options.email, options.pwd)
-        restore(server, options.backupDir, msgIndexFile, fldIndexFile)
-    elif options.action == "compact":
-        houseKeeping(options.backupDir, msgIndexFile, fldIndexFile, True)
-        houseKeeping(options.backupDir, msgIndexFile, fldIndexFile, False)
-    elif options.action == "printIndex":
-        status(deserialize(msgIndexFile))
-        status("\n\n")
-        status(deserialize(fldIndexFile))
-    elif options.action == "stats":
-        Stats.extractStats(options.backupDir, msgIndexFile, fldIndexFile)
-    elif options.action == "maildir":
-        createMaildir(options.backupDir, msgIndexFile, options.email, options.maildir)
-    elif options.action == "debug":
-        interact(msgIndexFile, fldIndexFile)
+    lock = LockFile(os.path.join(options.backupDir, "BaGoMa"))
+    if lock.is_locked():
+        logger.error("Failed to acquire application lock. Another BaGoMa instance is running.")
+        logger.error("If no other instance is running, manually delete: " + lock.path)
+    else:
+        with lock:
 
-    if server is not None:
-        try:
-            server.close()
-            server.logout()
-        except:
-            logger.exception("Closing server connection")
+            server = None
+            if options.action == "backup":
+                server = ImapServer(options.server, options.port, options.email, options.pwd)
+                backup(server, options.backupDir, msgIndexFile, fldIndexFile)
+            elif options.action == "restore":
+                server = ImapServer(options.server, options.port, options.email, options.pwd)
+                restore(server, options.backupDir, msgIndexFile, fldIndexFile)
+            elif options.action == "compact":
+                houseKeeping(options.backupDir, msgIndexFile, fldIndexFile, True)
+                houseKeeping(options.backupDir, msgIndexFile, fldIndexFile, False)
+            elif options.action == "printIndex":
+                status(deserialize(msgIndexFile))
+                status("\n\n")
+                status(deserialize(fldIndexFile))
+            elif options.action == "stats":
+                Stats.extractStats(options.backupDir, msgIndexFile, fldIndexFile)
+            elif options.action == "maildir":
+                createMaildir(options.backupDir, msgIndexFile, options.email, options.maildir)
+            elif options.action == "debug":
+                interact(msgIndexFile, fldIndexFile)
+
+            if server is not None:
+                try:
+                    server.close()
+                    server.logout()
+                except:
+                    logger.exception("Closing server connection")
 
     status('\nDone.\n')
 

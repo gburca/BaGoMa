@@ -1,5 +1,5 @@
 __author__="Gabriel Burca"
-__date__ ="2011-05-25"
+__date__ ="2014-02-09"
 
 import os
 from setuptools import setup, find_packages
@@ -9,24 +9,20 @@ def read(fname):
 
 setup (
     name = 'BaGoMa',
-    version = '1.30',
+    version = '1.40',
     author = 'Gabriel Burca',
     author_email = 'gburca-bagoma@ebixio.com',
 
-    requires = ['imaplib', 'cPickle', 'pprint', 'hashlib', 'time', 'getpass',
-      'optparse', 'email.parser'],
+    requires = ['imaplib', 'cPickle', 'pprint', 'time', 'getpass'],
+    # Declare dependencies
+    install_requires = ['hashlib', 'argparse', 'email', 'lockfile'],
 
-    scripts = ['bagoma.py', 'imap_utf7.py', 'guy.pyw'],
+    scripts = ['bagoma.py', 'imap_utf7.py', 'gui.pyw'],
 
     url = 'http://sourceforge.net/projects/bagoma',
     download_url = 'http://sourceforge.net/projects/bagoma/files/',
     license = 'GPL: <http://gnu.org/licenses/gpl.html>',
     description = 'Script to backup GMail accounts',
-#    long_description= """
-#BaGoMa (BAckup GOogle MAil) backs-up and restores the contents of a GMail
-#account. It can restore all the labels (folder structure), as well as the flags
-#(seen/read, flagged) of a message.
-#""",
 
     long_description = read('../README'),
 
