@@ -8,8 +8,6 @@ See the README file for full details. Run the script with no arguments to see
 the available options.
 """
 
-__version__ = "1.40"
-__author__ = "Gabriel Burca (gburca dash bagoma at ebixio dot com)"
 __copyright__ = "Copyright (C) 2010-2014 Gabriel Burca. Code under GPL License."
 __license__ = """
     This program is free software: you can redistribute it and/or modify
@@ -26,6 +24,7 @@ __license__ = """
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+from version import __version__, __date__, __author__, __email__
 
 import cPickle as pickle
 import imaplib

@@ -1,0 +1,4 @@
+# Sample config file.
+
+[email_1@gmail.com]
+pwd = pass1

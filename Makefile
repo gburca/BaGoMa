@@ -4,11 +4,11 @@ WIN_PYTHON27=/cygdrive/c/Utility/Python271
 WIN_PYTHON32=/cygdrive/c/Utility/Python32
 
 clean:
-	python install/setup.py clean
+	python setup.py clean
 	rm -rf dist build BaGoMa.egg-info man doc *.pyc
 
 install:
-	python install/setup.py install
+	python setup.py install
 
 doc:
 	mkdir -p man
@@ -19,7 +19,7 @@ doc:
 	pandoc -s --to=markdown README -o doc/README.markdown --no-wrap
 
 dist: doc
-	python install/setup.py sdist --formats=gztar,zip
+	python setup.py sdist --formats=gztar,zip
 	#python setup.py bdist_egg
 	#python setup.py bdist
 
@@ -49,6 +49,5 @@ deb: dist
 	#cd dist && dpkg-buildpackage -i -I -rfakeroot
 
 upload: doc
-	scp homepage/index.html $(USER),bagoma@web.sourceforge.net:htdocs
-	scp homepage/default.css $(USER),bagoma@web.sourceforge.net:htdocs
+	scp homepage/index.html homepage/default.css $(USER),bagoma@web.sourceforge.net:htdocs
 

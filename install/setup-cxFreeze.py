@@ -1,4 +1,5 @@
 from cx_Freeze import setup, Executable
+from bagoma import __version__, __date__, __author__, __email__
 
 # Process the includes, excludes and packages first
 
@@ -43,9 +44,9 @@ GUI2Exe_Target_1 = Executable(
 
 setup(
 
-    version = "1.30",
+    version = __version__,
     description = "No Description",
-    author = "Gabriel Burca",
+    author = __author__,
     name = "BaGoMa",
 
     options = {"build_exe": {"includes": includes,
